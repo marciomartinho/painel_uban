@@ -1,0 +1,89 @@
+<!-- app/templates/visualizador/query.html -->
+{% extends "base.html" %}
+
+{% block title %}SQL Query - {{ db_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .query-textarea {
+        font-family: 'Courier New', monospace;
+        min-height: 200px;
+    }
+    
+    .query-example {
+        background-color: #f8f9fa;
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 10px;
+    }
+    
+    .query-example code {
+        color: #007bff;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <a href="{{ url_for('visualizador.index') }}" class="btn btn-secondary">
+                ← Voltar
+            </a>
+            <h1 class="d-inline ml-3">SQL Query - Banco: {{ db_name }}</h1>
+        </div>
+    </div>
+    
+    {% if erro %}
+    <div class="alert alert-danger">
+        <strong>Erro:</strong> {{ erro }}
+    </div>
+    {% endif %}
+    
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Execute uma query SQL</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="form-group">
+                            <label for="query">Query SQL (apenas SELECT permitido):</label>
+                            <textarea name="query" id="query" class="form-control query-textarea" 
+                                      placeholder="SELECT * FROM tabela LIMIT 10" required>{{ query or '' }}</textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">Executar</button>
+                        <button type="reset" class="btn btn-secondary">Limpar</button>
+                    </form>
+                    
+                    <hr>
+                    
+                    <h6>Exemplos de queries úteis:</h6>
+                    
+                    <div class="query-example">
+                        <strong>Ver estrutura de colunas:</strong><br>
+                        <code>SELECT * FROM fato_saldos LIMIT 1</code>
+                    </div>
+                    
+                    <div class="query-example">
+                        <strong>Verificar nomes exatos das colunas:</strong><br>
+                        <code>SELECT sql FROM sqlite_master WHERE type='table' AND name='fato_saldos'</code>
+                    </div>
+                    
+                    <div class="query-example">
+                        <strong>Totalizar por categoria:</strong><br>
+                        <code>SELECT CATEGORIARECEITA, SUM("PREVISAO INICIAL") as total FROM fato_saldos GROUP BY CATEGORIARECEITA</code>
+                    </div>
+                    
+                    <div class="query-example">
+                        <strong>Buscar dados específicos:</strong><br>
+                        <code>SELECT * FROM fato_saldos WHERE COEXERCICIO = 2025 AND INMES = 6</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,99 @@
+<!-- app/templates/visualizador/index.html -->
+{% extends "base.html" %}
+
+{% block title %}Visualizador de Dados{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="text-center mb-4">Visualizador de Dados</h1>
+    
+    <div class="row">
+        <div class="col-md-12">
+            <div class="alert alert-info">
+                <strong>Atenção:</strong> Este módulo permite visualizar os dados brutos dos bancos de dados.
+                Use com cuidado e apenas para consulta.
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <!-- Banco de Saldos -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4>Banco de Saldos</h4>
+                </div>
+                <div class="card-body">
+                    <p>Contém os saldos consolidados por período.</p>
+                    <a href="{{ url_for('visualizador.estrutura_banco', db_name='saldos') }}" 
+                       class="btn btn-primary btn-block">
+                        Ver Estrutura
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Banco de Lançamentos -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h4>Banco de Lançamentos</h4>
+                </div>
+                <div class="card-body">
+                    <p>Contém todos os lançamentos detalhados.</p>
+                    <a href="{{ url_for('visualizador.estrutura_banco', db_name='lancamentos') }}" 
+                       class="btn btn-success btn-block">
+                        Ver Estrutura
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Banco de Dimensões -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h4>Banco de Dimensões</h4>
+                </div>
+                <div class="card-body">
+                    <p>Contém as tabelas de dimensões e classificações.</p>
+                    <a href="{{ url_for('visualizador.estrutura_banco', db_name='dimensoes') }}" 
+                       class="btn btn-info btn-block">
+                        Ver Estrutura
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4>SQL Query Personalizada</h4>
+                </div>
+                <div class="card-body">
+                    <p>Execute queries SQL customizadas (apenas SELECT).</p>
+                    <div class="text-center">
+                        <a href="{{ url_for('visualizador.executar_query', db_name='saldos') }}" 
+                           class="btn btn-lg btn-primary mb-2">
+                            <strong>Iniciar com Query em Saldos</strong>
+                        </a>
+                        <p class="text-muted">Comece aqui para descobrir os nomes das colunas!</p>
+                    </div>
+                    <div class="btn-group mt-3">
+                        <a href="{{ url_for('visualizador.executar_query', db_name='lancamentos') }}" 
+                           class="btn btn-outline-success">
+                            Query em Lançamentos
+                        </a>
+                        <a href="{{ url_for('visualizador.executar_query', db_name='dimensoes') }}" 
+                           class="btn btn-outline-info">
+                            Query em Dimensões
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

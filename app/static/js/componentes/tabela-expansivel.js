@@ -234,10 +234,17 @@ class TabelaExpansivel {
     }
     
     aplicarEstadoInicial() {
-        // Primeiro, esconde todos os filhos
+        // CORREÇÃO: Não esconde linhas com data-nivel="-1" (total geral) ou sem data-pai definido
         const todasLinhas = this.container.querySelectorAll('tr[data-pai]');
         todasLinhas.forEach(linha => {
-            linha.style.display = 'none';
+            // Verifica se é uma linha de total (nivel -1) ou se não tem pai definido
+            const nivel = linha.dataset.nivel;
+            const pai = linha.dataset.pai;
+            
+            // Só esconde se não for total e tiver um pai válido
+            if (nivel !== '-1' && pai && pai !== 'null' && pai !== '') {
+                linha.style.display = 'none';
+            }
         });
         
         // Depois, expande os que estavam abertos

@@ -1,0 +1,66 @@
+<!-- app/templates/visualizador/estrutura.html -->
+{% extends "base.html" %}
+
+{% block title %}Estrutura do Banco: {{ db_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <a href="{{ url_for('visualizador.index') }}" class="btn btn-secondary">
+                ← Voltar
+            </a>
+            <h1 class="d-inline ml-3">Estrutura do Banco: {{ db_name }}</h1>
+        </div>
+    </div>
+    
+    <div class="row">
+        {% for tabela, info in estrutura.items() %}
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">
+                        {{ tabela }} 
+                        <span class="badge badge-light float-right">
+                            {{ "{:,}".format(info.total_registros) }} registros
+                        </span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <h6>Colunas:</h6>
+                    <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                        <table class="table table-sm table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Tipo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for coluna in info.colunas %}
+                                <tr>
+                                    <td><code>{{ coluna.nome }}</code></td>
+                                    <td><small class="text-muted">{{ coluna.tipo }}</small></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <a href="{{ url_for('visualizador.visualizar_dados', db_name=db_name, table_name=tabela) }}" 
+                           class="btn btn-primary btn-sm">
+                            Ver Dados
+                        </a>
+                        <a href="{{ url_for('visualizador.exportar_dados', db_name=db_name, table_name=tabela) }}" 
+                           class="btn btn-success btn-sm">
+                            Exportar Excel
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

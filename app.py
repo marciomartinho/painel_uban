@@ -4,6 +4,7 @@
 from flask import Flask, render_template
 import os
 import sys
+import time
 
 # Adiciona o diretório ao path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -44,6 +45,8 @@ def create_app():
     # Configurações
     app.config['SECRET_KEY'] = 'chave-secreta-desenvolvimento'
     app.config['DEBUG'] = True
+    # Desabilita cache de arquivos estáticos em desenvolvimento
+    app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
     
     # Registra filtros e funções globais
     @app.context_processor
@@ -51,8 +54,20 @@ def create_app():
         """Disponibiliza utilitários em todos os templates"""
         return dict(
             fmt=FormatadorMonetario,
-            obter_periodo_referencia=obter_periodo_referencia
+            obter_periodo_referencia=obter_periodo_referencia,
+            # Adiciona timestamp para cache busting
+            cache_buster=int(time.time())
         )
+    
+    # Adiciona headers para prevenir cache
+    @app.after_request
+    def add_header(response):
+        """Adiciona headers para evitar cache em desenvolvimento"""
+        if 'Cache-Control' not in response.headers:
+            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '-1'
+        return response
     
     # Rota principal
     @app.route('/')
@@ -72,7 +87,9 @@ def create_app():
     # Registra blueprints
     try:
         from app.routes_relatorios import relatorios_bp
+        from app.routes_visualizador import visualizador_bp
         app.register_blueprint(relatorios_bp)
+        app.register_blueprint(visualizador_bp)
     except ImportError as e:
         print(f"Erro ao importar blueprints: {e}")
     

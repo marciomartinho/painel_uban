@@ -1,0 +1,149 @@
+<!-- app/templates/relatorios/balanco_orcamentario_receita.html -->
+{% extends "base.html" %}
+
+{% block title %}Balanço Orçamentário da Receita{% endblock %}
+
+{% block extra_css %}
+<!-- Força recarga com cache buster -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/componentes/tabela-expansivel.css') }}?v={{ cache_buster }}">
+<style>
+    .titulo-relatorio {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    
+    .info-periodo {
+        text-align: right;
+        margin-bottom: 20px;
+        color: #666;
+    }
+    
+    .tabela-balanco {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+    
+    .tabela-balanco th,
+    .tabela-balanco td {
+        padding: 8px 12px;
+        text-align: right;
+        border: 1px solid #ddd;
+    }
+    
+    .tabela-balanco th {
+        background-color: #f5f5f5;
+        font-weight: bold;
+        text-align: center;
+    }
+    
+    .tabela-balanco td:first-child {
+        text-align: left;
+        min-width: 300px;
+    }
+    
+    .tabela-balanco tr.total-geral {
+        background-color: #e8f4f8;
+        font-weight: bold;
+        font-size: 1.1em;
+    }
+    
+    .tabela-balanco tr.total-geral td {
+        border-top: 2px solid #333;
+        border-bottom: 2px solid #333;
+    }
+    
+    .valor-positivo { color: #28a745; }
+    .valor-negativo { color: #dc3545; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="titulo-relatorio">
+        <h1>Balanço Orçamentário da Receita</h1>
+        <h3>Demonstrativo da Execução Orçamentária</h3>
+    </div>
+    
+    <div class="info-periodo">
+        <p><strong>Período de Referência:</strong> {{ periodo.periodo_completo }}</p>
+        <p><strong>Comparativo:</strong> {{ periodos.titulo_comparativo }}</p>
+    </div>
+    
+    <table id="tabela-balanco" class="tabela-balanco">
+        <thead>
+            <tr>
+                <th rowspan="2">Receitas</th>
+                <th colspan="2">Previsão</th>
+                <th colspan="2">Realização</th>
+                <th colspan="2">Variação</th>
+            </tr>
+            <tr>
+                <th>Inicial</th>
+                <th>Atualizada</th>
+                <th>{{ periodos.anterior.label }}</th>
+                <th>{{ periodos.atual.label }}</th>
+                <th>Absoluta (R$)</th>
+                <th>Relativa (%)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in dados %}
+            <tr data-id="{{ item.id }}" 
+                data-nivel="{{ item.nivel }}" 
+                {% if item.pai %}data-pai="{{ item.pai }}"{% endif %}
+                {% if item.nivel == -1 %}class="total-geral"{% endif %}>
+                <td>
+                    {% if item.codigo %}
+                        {{ item.codigo }} - {{ item.descricao }}
+                    {% else %}
+                        {{ item.descricao }}
+                    {% endif %}
+                </td>
+                <td>{{ fmt.moeda(item.previsao_inicial) }}</td>
+                <td>{{ fmt.moeda(item.previsao_atualizada) }}</td>
+                <td>{{ fmt.moeda(item.receita_anterior) }}</td>
+                <td>{{ fmt.moeda(item.receita_atual) }}</td>
+                <td class="{% if item.variacao_absoluta > 0 %}valor-positivo{% elif item.variacao_absoluta < 0 %}valor-negativo{% endif %}">
+                    {{ fmt.moeda(item.variacao_absoluta) }}
+                </td>
+                <td class="{% if item.variacao_percentual > 0 %}valor-positivo{% elif item.variacao_percentual < 0 %}valor-negativo{% endif %}">
+                    {{ fmt.percentual(item.variacao_percentual) }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- JavaScript inline temporário para evitar problemas de cache -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Inicializando tabela - versão sem expansão/colapso');
+    
+    // Por enquanto, vamos apenas garantir que todas as linhas sejam visíveis
+    const todasLinhas = document.querySelectorAll('#tabela-balanco tbody tr');
+    console.log('Total de linhas encontradas:', todasLinhas.length);
+    
+    todasLinhas.forEach((linha, index) => {
+        linha.style.display = 'table-row';
+        console.log(`Linha ${index}: id=${linha.dataset.id}, nivel=${linha.dataset.nivel}, pai=${linha.dataset.pai}`);
+    });
+    
+    // Mostra informações de debug
+    const dadosDebug = {
+        totalLinhas: todasLinhas.length,
+        linhasTotais: document.querySelectorAll('tr[data-nivel="-1"]').length,
+        linhasNivel0: document.querySelectorAll('tr[data-nivel="0"]').length,
+        linhasComPai: document.querySelectorAll('tr[data-pai]').length
+    };
+    
+    console.log('Debug info:', dadosDebug);
+});
+</script>
+
+<!-- Tentativa de carregar o JS com cache buster após verificar que tudo está funcionando -->
+<script src="{{ url_for('static', filename='js/componentes/tabela-expansivel.js') }}?v={{ cache_buster }}" defer></script>
+{% endblock %}

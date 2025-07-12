@@ -1,0 +1,339 @@
+<!-- app/templates/visualizador/dados.html -->
+{% extends "base.html" %}
+
+{% block title %}Dados: {{ table_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .table-container {
+        overflow-x: auto;
+        overflow-y: auto;
+        max-height: 70vh;
+        position: relative;
+        border: 1px solid #dee2e6;
+        margin-top: 10px;
+    }
+    
+    .table-dados {
+        font-size: 0.75em;
+        white-space: nowrap;
+    }
+    
+    .table-dados th, .table-dados td {
+        padding: 4px 8px;
+        border-right: 1px solid #dee2e6;
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .table-dados th {
+        position: sticky;
+        top: 0;
+        background-color: #343a40;
+        color: white;
+        z-index: 10;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    
+    .table-dados th:hover {
+        background-color: #495057;
+    }
+    
+    .table-dados tbody tr:hover {
+        background-color: #fff3cd !important;
+    }
+    
+    /* Primeira coluna fixa */
+    .table-dados td:first-child,
+    .table-dados th:first-child {
+        position: sticky;
+        left: 0;
+        background-color: #f8f9fa;
+        z-index: 5;
+        text-align: center;
+        font-weight: 600;
+    }
+    
+    .table-dados th:first-child {
+        background-color: #495057;
+        z-index: 11;
+    }
+    
+    .valor-null {
+        color: #6c757d;
+        font-style: italic;
+    }
+    
+    /* Filtros */
+    .filtros-container {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+        padding: 10px;
+        background-color: #f8f9fa;
+    }
+    
+    .filtro-grupo {
+        margin-bottom: 10px;
+    }
+    
+    .sort-indicator {
+        font-size: 0.8em;
+        margin-left: 3px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <a href="{{ url_for('visualizador.estrutura_banco', db_name=db_name) }}" class="btn btn-secondary btn-sm">
+                ← Voltar
+            </a>
+            <h2 class="d-inline ml-3">{{ table_name }}</h2>
+            <span class="badge badge-info ml-2">{{ total_registros }} registros totais</span>
+        </div>
+    </div>
+    
+    <!-- Filtros Rápidos -->
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header py-2">
+                    <h6 class="mb-0">
+                        Filtros Rápidos
+                        <button class="btn btn-sm btn-outline-secondary float-right" onclick="toggleFiltros()">
+                            Mostrar/Ocultar
+                        </button>
+                    </h6>
+                </div>
+                <div class="card-body py-2" id="filtros-rapidos" style="display: block;">
+                    <form method="GET" id="form-filtros">
+                        <div class="filtros-container">
+                            <div class="row">
+                                {% if table_name == 'lancamentos' %}
+                                    <!-- Filtros para Lançamentos -->
+                                    {% set campos_filtro = ['COEXERCICIO', 'COUG', 'COEVENTO', 'COCONTACONTABIL', 
+                                                           'COCONTACORRENTE', 'INMES', 'COUGDESTINO', 'COUGCONTAB', 
+                                                           'CATEGORIARECEITA', 'COFONTERECEITA', 'COSUBFONTERECEITA', 
+                                                           'CORUBRICA', 'COALINE', 'COFONTE'] %}
+                                {% elif table_name == 'fato_saldos' %}
+                                    <!-- Filtros para Saldos -->
+                                    {% set campos_filtro = ['CATEGORIA', 'ORIGEM', 'ESPECIE', 'ESPECIFICACAO', 
+                                                           'ALINEA', 'COEXERCICIO', 'INMES', 'COUG', 
+                                                           'COCONTACORRENTE', 'INTIPOADM', 'NOUG'] %}
+                                {% else %}
+                                    <!-- Filtros genéricos baseados nos valores únicos -->
+                                    {% set campos_filtro = valores_unicos.keys() %}
+                                {% endif %}
+                                
+                                {% for campo in campos_filtro %}
+                                    {% if campo in valores_unicos and valores_unicos[campo] %}
+                                    <div class="col-md-2 col-sm-4 col-6 filtro-grupo">
+                                        <label class="small mb-1">{{ campo }}</label>
+                                        <select name="{{ campo }}" class="form-control form-control-sm filtro-select">
+                                            <option value="">Todos</option>
+                                            {% for valor in valores_unicos[campo][:50] %}
+                                            <option value="{{ valor }}" {% if request.args.get(campo) == valor|string %}selected{% endif %}>
+                                                {{ valor }}
+                                            </option>
+                                            {% endfor %}
+                                            {% if valores_unicos[campo]|length > 50 %}
+                                            <option disabled>... mais {{ valores_unicos[campo]|length - 50 }} opções</option>
+                                            {% endif %}
+                                        </select>
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <button type="submit" class="btn btn-primary btn-sm">
+                                <i class="fas fa-filter"></i> Aplicar Filtros
+                            </button>
+                            <a href="{{ url_for('visualizador.visualizar_dados', db_name=db_name, table_name=table_name) }}" 
+                               class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-times"></i> Limpar Tudo
+                            </a>
+                            <span class="ml-3 text-muted small" id="filtros-ativos"></span>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tabela de Dados -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header py-2">
+                    <h6 class="mb-0 d-flex justify-content-between align-items-center">
+                        <span>
+                            Dados 
+                            <small class="text-muted">(Página {{ page }} de {{ total_pages }})</small>
+                        </span>
+                        <a href="{{ url_for('visualizador.exportar_dados', db_name=db_name, table_name=table_name, **request.args) }}" 
+                           class="btn btn-success btn-sm">
+                            <i class="fas fa-file-excel"></i> Exportar Excel
+                        </a>
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-container">
+                        <table class="table table-sm table-striped table-bordered table-dados mb-0" id="tabela-dados">
+                            <thead>
+                                <tr>
+                                    <th onclick="ordenarTabela(0)"># <span class="sort-indicator" id="sort-0"></span></th>
+                                    {% for coluna in colunas %}
+                                    <th onclick="ordenarTabela({{ loop.index }})" title="Clique para ordenar">
+                                        {{ coluna }} <span class="sort-indicator" id="sort-{{ loop.index }}"></span>
+                                    </th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in dados %}
+                                <tr>
+                                    <td>{{ loop.index + (page-1)*per_page }}</td>
+                                    {% for coluna in colunas %}
+                                    <td title="{{ row[coluna] if row[coluna] is not none else 'NULL' }}">
+                                        {% if row[coluna] is none %}
+                                            <span class="valor-null">NULL</span>
+                                        {% else %}
+                                            {{ row[coluna] }}
+                                        {% endif %}
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Paginação -->
+    {% if total_pages > 1 %}
+    <div class="row mt-3">
+        <div class="col-md-12">
+            <nav>
+                <ul class="pagination pagination-sm justify-content-center">
+                    {% if page > 1 %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{{ '&' + request.query_string.decode() if request.query_string else '' }}">Primeira</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page-1 }}{{ '&' + request.query_string.decode() if request.query_string else '' }}">Anterior</a>
+                    </li>
+                    {% endif %}
+                    
+                    {% set start_page = [1, page - 2]|max %}
+                    {% set end_page = [total_pages, page + 2]|min %}
+                    
+                    {% for p in range(start_page, end_page + 1) %}
+                    <li class="page-item {% if p == page %}active{% endif %}">
+                        <a class="page-link" href="?page={{ p }}{{ '&' + request.query_string.decode() if request.query_string else '' }}">
+                            {{ p }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                    
+                    {% if page < total_pages %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page+1 }}{{ '&' + request.query_string.decode() if request.query_string else '' }}">Próxima</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ total_pages }}{{ '&' + request.query_string.decode() if request.query_string else '' }}">Última</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Variáveis globais
+let ordemAtual = {};
+
+// Mostrar/Ocultar filtros
+function toggleFiltros() {
+    const filtros = document.getElementById('filtros-rapidos');
+    filtros.style.display = filtros.style.display === 'none' ? 'block' : 'none';
+}
+
+// Ordenar tabela
+function ordenarTabela(colunaIndex) {
+    const tabela = document.getElementById('tabela-dados');
+    const tbody = tabela.querySelector('tbody');
+    const linhas = Array.from(tbody.querySelectorAll('tr'));
+    
+    // Limpa indicadores
+    document.querySelectorAll('.sort-indicator').forEach(ind => ind.textContent = '');
+    
+    // Alterna ordem
+    ordemAtual[colunaIndex] = ordemAtual[colunaIndex] === 'asc' ? 'desc' : 'asc';
+    
+    // Atualiza indicador
+    document.getElementById(`sort-${colunaIndex}`).textContent = 
+        ordemAtual[colunaIndex] === 'asc' ? '▲' : '▼';
+    
+    linhas.sort((a, b) => {
+        const celulaA = a.cells[colunaIndex];
+        const celulaB = b.cells[colunaIndex];
+        
+        if (!celulaA || !celulaB) return 0;
+        
+        let valorA = celulaA.textContent.trim();
+        let valorB = celulaB.textContent.trim();
+        
+        // Remove "NULL" para ordenação
+        if (valorA === 'NULL') valorA = '';
+        if (valorB === 'NULL') valorB = '';
+        
+        // Tenta converter para número
+        const numA = parseFloat(valorA.replace(/[^\d.-]/g, ''));
+        const numB = parseFloat(valorB.replace(/[^\d.-]/g, ''));
+        
+        if (!isNaN(numA) && !isNaN(numB)) {
+            return ordemAtual[colunaIndex] === 'asc' ? numA - numB : numB - numA;
+        }
+        
+        // Ordenação alfabética
+        if (ordemAtual[colunaIndex] === 'asc') {
+            return valorA.localeCompare(valorB, 'pt-BR');
+        } else {
+            return valorB.localeCompare(valorA, 'pt-BR');
+        }
+    });
+    
+    // Reinsere as linhas
+    linhas.forEach(linha => tbody.appendChild(linha));
+}
+
+// Conta filtros ativos
+document.addEventListener('DOMContentLoaded', function() {
+    const selects = document.querySelectorAll('.filtro-select');
+    let ativos = 0;
+    
+    selects.forEach(select => {
+        if (select.value) ativos++;
+    });
+    
+    if (ativos > 0) {
+        document.getElementById('filtros-ativos').textContent = 
+            `${ativos} filtro(s) ativo(s)`;
+    }
+});
+</script>
+{% endblock %}

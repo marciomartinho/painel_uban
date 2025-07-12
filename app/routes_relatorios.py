@@ -31,7 +31,7 @@ def get_db_connections():
 def index():
     """Página principal dos relatórios"""
     periodo = obter_periodo_referencia()
-    return render_template('relatorios/index.html', periodo=periodo)
+    return render_template('relatorios_orcamentarios/index.html', periodo=periodo)
 
 @relatorios_bp.route('/balanco-orcamentario-receita')
 def balanco_orcamentario_receita():
@@ -69,7 +69,7 @@ def balanco_orcamentario_receita():
     for p in periodos_disponiveis:
         print(f"  - {p['INMES']}/{p['COEXERCICIO']}")
     
-    # Query simplificada - vamos buscar TODOS os dados primeiro para debug
+    # Query simplificada - agora com os nomes corretos das colunas (com espaços)
     query_debug = """
     SELECT 
         CATEGORIARECEITA,
@@ -149,7 +149,7 @@ def balanco_orcamentario_receita():
     print("=== FIM DEBUG ===\n")
     
     return render_template(
-        'relatorios/balanco_orcamentario_receita.html',
+        'relatorios_orcamentarios/balanco_orcamentario_receita.html',
         dados=dados_hierarquicos,
         periodo=periodo,
         periodos=periodos,
@@ -171,7 +171,7 @@ def processar_dados_simples(dados_atual, dados_anterior, ano_atual):
                 'codigo': cat_id,
                 'descricao': row['NOCATEGORIARECEITA'] or f'Categoria {cat_id}',
                 'nivel': 0,
-                'pai': None,
+                'pai': None,  # IMPORTANTE: pai None para categorias principais
                 'previsao_inicial': 0,
                 'previsao_atualizada': 0,
                 'receita_atual': 0,
@@ -191,7 +191,7 @@ def processar_dados_simples(dados_atual, dados_anterior, ano_atual):
                 'codigo': cat_id,
                 'descricao': row['NOCATEGORIARECEITA'] or f'Categoria {cat_id}',
                 'nivel': 0,
-                'pai': None,
+                'pai': None,  # IMPORTANTE: pai None para categorias principais
                 'previsao_inicial': 0,
                 'previsao_atualizada': 0,
                 'receita_atual': 0,
@@ -213,7 +213,7 @@ def processar_dados_simples(dados_atual, dados_anterior, ano_atual):
         'codigo': '',
         'descricao': 'TOTAL GERAL',
         'nivel': -1,
-        'pai': None,
+        'pai': None,  # IMPORTANTE: Total não tem pai
         'previsao_inicial': sum(cat['previsao_inicial'] for cat in categorias.values()),
         'previsao_atualizada': sum(cat['previsao_atualizada'] for cat in categorias.values()),
         'receita_atual': sum(cat['receita_atual'] for cat in categorias.values()),
@@ -229,7 +229,7 @@ def processar_dados_simples(dados_atual, dados_anterior, ano_atual):
     dados_finais.append(total_geral)
     
     # Adiciona categorias com variações calculadas
-    for cat in categorias.values():
+    for cat in sorted(categorias.values(), key=lambda x: x['codigo']):
         cat['variacao_absoluta'] = cat['receita_atual'] - cat['receita_anterior']
         cat['variacao_percentual'] = (
             (cat['variacao_absoluta'] / cat['receita_anterior']) 
@@ -253,7 +253,7 @@ def gerar_dados_exemplo(periodo):
             'codigo': '',
             'descricao': 'TOTAL GERAL (DADOS DE EXEMPLO)',
             'nivel': -1,
-            'pai': None,
+            'pai': None,  # IMPORTANTE: Total não tem pai
             'previsao_inicial': 48535054229.00,
             'previsao_atualizada': 48535054229.00,
             'receita_atual': 22982101363.93,
@@ -266,7 +266,7 @@ def gerar_dados_exemplo(periodo):
             'codigo': '1',
             'descricao': 'RECEITAS CORRENTES',
             'nivel': 0,
-            'pai': None,
+            'pai': None,  # IMPORTANTE: Categorias principais não têm pai
             'previsao_inicial': 45000000000.00,
             'previsao_atualizada': 45000000000.00,
             'receita_atual': 21000000000.00,
@@ -279,7 +279,7 @@ def gerar_dados_exemplo(periodo):
             'codigo': '2',
             'descricao': 'RECEITAS DE CAPITAL',
             'nivel': 0,
-            'pai': None,
+            'pai': None,  # IMPORTANTE: Categorias principais não têm pai
             'previsao_inicial': 3535054229.00,
             'previsao_atualizada': 3535054229.00,
             'receita_atual': 1982101363.93,
