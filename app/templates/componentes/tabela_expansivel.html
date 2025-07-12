@@ -1,0 +1,37 @@
+{# app/templates/componentes/tabela_expansivel.html #}
+{# Macros reutilizáveis para tabelas expansíveis #}
+
+{% macro render_tabela_expansivel_simples(tabela_id, expandir_todos=false, recolher_todos=false) %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Inicializa a tabela expansível
+    const tabela = new TabelaExpansivel('{{ tabela_id }}', {
+        salvarEstado: true,
+        animacao: true,
+        expandirTodos: {{ expandir_todos|lower }},
+        recolherTodos: {{ recolher_todos|lower }},
+        indentacaoPorNivel: 20
+    });
+    
+    // Prepara para impressão
+    window.addEventListener('beforeprint', function() {
+        tabela.prepararParaImpressao();
+    });
+});
+</script>
+{% endmacro %}
+
+{% macro render_botao_expandir(id, nivel=0) %}
+<button class="btn-expandir" data-id="{{ id }}" data-nivel="{{ nivel }}" aria-expanded="false">
+    <span class="icone">▶</span>
+</button>
+{% endmacro %}
+
+{% macro render_linha_expansivel(dados, nivel=0) %}
+<tr data-id="{{ dados.id }}" 
+    data-pai="{{ dados.pai or '' }}" 
+    data-nivel="{{ nivel }}"
+    {% if dados.classe %}class="{{ dados.classe }}"{% endif %}>
+    {{ caller() }}
+</tr>
+{% endmacro %}
