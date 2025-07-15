@@ -1,0 +1,161 @@
+{# templates/index.html #}
+{# TEMPLATE PADRÃO - NÃO MODIFICAR SEM AUTORIZAÇÃO #}
+{% extends "base.html" %}
+
+{% block title %}Página Inicial{% endblock %}
+
+{% block head %}
+<style>
+    .hero-section {
+        background: linear-gradient(135deg, #003366 0%, #005599 100%);
+        color: white;
+        padding: 60px 0;
+        margin-bottom: 40px;
+    }
+    
+    .feature-card {
+        text-align: center;
+        padding: 30px;
+        border-radius: 10px;
+        transition: all 0.3s;
+        height: 100%;
+    }
+    
+    .feature-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    
+    .feature-icon {
+        font-size: 3rem;
+        margin-bottom: 20px;
+    }
+    
+    .stats-box {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    
+    .stats-number {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #003366;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="hero-section">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="display-4 mb-4">Painel de Relatórios UBAN</h1>
+                <p class="lead mb-4">
+                    Relatórios Contábeis, Orçamentários e Financeiros
+                </p>
+                <a href="{{ url_for('relatorios.index') }}" class="btn btn-light btn-lg">
+                    <i class="fas fa-chart-bar"></i> Acessar Relatórios
+                </a>
+            </div>
+            <div class="col-md-4 text-center">
+                <i class="fas fa-chart-line" style="font-size: 150px; opacity: 0.3;"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Informações do Período -->
+<div class="container mb-5">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="stats-box">
+                <div class="stats-number">{{ periodo.periodo_completo }}</div>
+                <div class="text-muted">Período de Referência</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stats-box">
+                <div class="stats-number">488.589</div>
+                <div class="text-muted">Lançamentos Processados</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stats-box">
+                <div class="stats-number">2024-2025</div>
+                <div class="text-muted">Exercícios Disponíveis</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Features -->
+<div class="container">
+    <h2 class="text-center mb-5">Recursos Disponíveis</h2>
+    
+    <div class="row">
+        <div class="col-md-3 mb-4">
+            <div class="card feature-card">
+                <div class="feature-icon text-primary">
+                    <i class="fas fa-balance-scale"></i>
+                </div>
+                <h4>Balanço Orçamentário</h4>
+                <p>Análises das Receitas e Despesas</p>
+                <a href="{{ url_for('relatorios.index') }}" class="btn btn-primary">
+                    Acessar
+                </a>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-4">
+            <div class="card feature-card">
+                <div class="feature-icon text-info">
+                    <i class="fas fa-database"></i>
+                </div>
+                <h4>Explorador de Dados</h4>
+                <p>Navegue e analise os dados brutos diretamente das bases de dados do sistema</p>
+                <a href="{{ url_for('visualizador.index') }}" class="btn btn-info">
+                    Explorar
+                </a>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-4">
+            <div class="card feature-card">
+                <div class="feature-icon text-success">
+                    <i class="fas fa-search-dollar"></i>
+                </div>
+                <h4>Análises Detalhadas</h4>
+                <p>Visualização hierárquica por categoria, origem e espécie de receita</p>
+                <button class="btn btn-secondary" disabled>Em breve</button>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-4">
+            <div class="card feature-card">
+                <div class="feature-icon text-warning">
+                    <i class="fas fa-file-export"></i>
+                </div>
+                <h4>Exportação de Dados</h4>
+                <p>Exporte relatórios em PDF, Excel e outros formatos</p>
+                <button class="btn btn-secondary" disabled>Em breve</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Informações Adicionais -->
+<div class="container mt-5">
+    <div class="alert alert-info">
+        <h5><i class="fas fa-info-circle"></i> Sobre os Dados</h5>
+        <p class="mb-0">
+            Os dados apresentados são extraídos do sistema SIGGO e processados conforme as regras 
+            contábeis vigentes. O período de referência é atualizado automaticamente com base 
+            no último mês disponível no banco de dados.
+        </p>
+    </div>
+</div>
+{% endblock %}

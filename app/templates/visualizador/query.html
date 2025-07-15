@@ -1,0 +1,270 @@
+<!-- app/templates/visualizador/query.html -->
+{% extends "base.html" %}
+
+{% block title %}SQL Query - {{ db_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .query-textarea {
+        font-family: 'Courier New', monospace;
+        min-height: 200px;
+        background-color: #f8f9fa;
+        border: 2px solid #dee2e6;
+    }
+    
+    .query-textarea:focus {
+        background-color: white;
+        border-color: #80bdff;
+    }
+    
+    .query-example {
+        background-color: #f8f9fa;
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 10px;
+        border-left: 4px solid #007bff;
+    }
+    
+    .query-example code {
+        color: #007bff;
+        font-size: 0.9em;
+    }
+    
+    .tabelas-list {
+        max-height: 200px;
+        overflow-y: auto;
+        background-color: #f8f9fa;
+        padding: 10px;
+        border-radius: 5px;
+    }
+    
+    .tabela-item {
+        cursor: pointer;
+        padding: 3px 8px;
+        margin: 2px 0;
+        border-radius: 3px;
+        transition: background-color 0.2s;
+    }
+    
+    .tabela-item:hover {
+        background-color: #e9ecef;
+    }
+    
+    .tabela-item code {
+        color: #495057;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <a href="{{ url_for('visualizador.index') }}" class="btn btn-secondary">
+                ← Voltar
+            </a>
+            <h1 class="d-inline ml-3">SQL Query - Banco: {{ db_name }}</h1>
+        </div>
+    </div>
+    
+    {% if erro %}
+    <div class="alert alert-danger alert-dismissible fade show">
+        <button type="button" class="close" data-dismiss="alert">&times;</button>
+        <strong>Erro:</strong> {{ erro }}
+    </div>
+    {% endif %}
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-code"></i> Execute uma query SQL
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="form-group">
+                            <label for="query">Query SQL (apenas SELECT permitido):</label>
+                            <textarea name="query" id="query" class="form-control query-textarea" 
+                                      placeholder="SELECT * FROM tabela LIMIT 10" required>{{ query or '' }}</textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-play"></i> Executar
+                        </button>
+                        <button type="reset" class="btn btn-secondary">
+                            <i class="fas fa-eraser"></i> Limpar
+                        </button>
+                        <button type="button" class="btn btn-info" onclick="formatQuery()">
+                            <i class="fas fa-indent"></i> Formatar
+                        </button>
+                    </form>
+                    
+                    <hr>
+                    
+                    <h6><i class="fas fa-lightbulb"></i> Exemplos de queries úteis:</h6>
+                    
+                    {% if db_name == 'dimensoes' %}
+                    <div class="query-example">
+                        <strong>Listar todas as categorias:</strong><br>
+                        <code>SELECT * FROM categorias</code>
+                    </div>
+                    
+                    <div class="query-example">
+                        <strong>Buscar descrição de uma origem:</strong><br>
+                        <code>SELECT * FROM origens WHERE COFONTERECEITA = '11'</code>
+                    </div>
+                    
+                    <div class="query-example">
+                        <strong>Contar registros por tabela:</strong><br>
+                        <code>SELECT 'categorias' as tabela, COUNT(*) as total FROM categorias
+UNION ALL
+SELECT 'origens', COUNT(*) FROM origens
+UNION ALL
+SELECT 'especies', COUNT(*) FROM especies</code>
+                    </div>
+                    
+                    {% elif db_name == 'saldos' %}
+                    <div class="query-example">
+                        <strong>Ver estrutura de colunas:</strong><br>
+                        <code>SELECT * FROM fato_saldos LIMIT 1</code>
+                    </div>
+                    
+                    <div class="query-example">
+                        <strong>Totalizar por categoria:</strong><br>
+                        <code>SELECT CATEGORIA, SUM("PREVISAO INICIAL") as total 
+FROM fato_saldos 
+GROUP BY CATEGORIA</code>
+                    </div>
+                    
+                    {% elif db_name == 'lancamentos' %}
+                    <div class="query-example">
+                        <strong>Lançamentos por mês:</strong><br>
+                        <code>SELECT INMES, COUNT(*) as qtd, SUM(VLLANCAMENTO) as total 
+FROM lancamentos 
+GROUP BY INMES 
+ORDER BY INMES</code>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="query-example">
+                        <strong>Ver informações do schema:</strong><br>
+                        <code>SELECT sql FROM sqlite_master WHERE type='table'</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-table"></i> Tabelas Disponíveis
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if tabelas_disponiveis %}
+                    <p class="text-muted small">Clique em uma tabela para adicionar à query:</p>
+                    <div class="tabelas-list">
+                        {% for tabela in tabelas_disponiveis %}
+                        <div class="tabela-item" onclick="addTableToQuery('{{ tabela }}')">
+                            <i class="fas fa-table text-muted"></i> 
+                            <code>{{ tabela }}</code>
+                            {% if tabela.startswith('v_') %}
+                                <span class="badge badge-secondary badge-sm">VIEW</span>
+                            {% elif tabela not in ['categorias', 'origens', 'especies', 'especificacoes', 'alineas', 'fontes', 'contas', 'unidades_gestoras'] and db_name == 'dimensoes' %}
+                                <span class="badge badge-warning badge-sm">NOVA</span>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted">Nenhuma tabela encontrada.</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-keyboard"></i> Atalhos
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li><kbd>Ctrl</kbd> + <kbd>Enter</kbd> - Executar query</li>
+                        <li><kbd>Ctrl</kbd> + <kbd>Space</kbd> - Auto-completar</li>
+                        <li><kbd>Ctrl</kbd> + <kbd>L</kbd> - Limpar query</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Adiciona tabela à query
+function addTableToQuery(tableName) {
+    const textarea = document.getElementById('query');
+    const currentValue = textarea.value.trim();
+    
+    if (currentValue === '') {
+        textarea.value = `SELECT * FROM ${tableName} LIMIT 10`;
+    } else {
+        // Adiciona no cursor position
+        const cursorPos = textarea.selectionStart;
+        const textBefore = currentValue.substring(0, cursorPos);
+        const textAfter = currentValue.substring(cursorPos);
+        textarea.value = textBefore + tableName + textAfter;
+        
+        // Reposiciona o cursor
+        textarea.selectionStart = cursorPos + tableName.length;
+        textarea.selectionEnd = cursorPos + tableName.length;
+    }
+    
+    textarea.focus();
+}
+
+// Formata query básica
+function formatQuery() {
+    const textarea = document.getElementById('query');
+    let query = textarea.value.trim();
+    
+    // Formatação básica
+    query = query.replace(/\s+/g, ' '); // Remove espaços extras
+    query = query.replace(/SELECT/gi, 'SELECT');
+    query = query.replace(/FROM/gi, '\nFROM');
+    query = query.replace(/WHERE/gi, '\nWHERE');
+    query = query.replace(/GROUP BY/gi, '\nGROUP BY');
+    query = query.replace(/ORDER BY/gi, '\nORDER BY');
+    query = query.replace(/LIMIT/gi, '\nLIMIT');
+    query = query.replace(/UNION ALL/gi, '\nUNION ALL\n');
+    
+    textarea.value = query;
+}
+
+// Atalhos de teclado
+document.addEventListener('DOMContentLoaded', function() {
+    const textarea = document.getElementById('query');
+    
+    // Ctrl+Enter para executar
+    textarea.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.key === 'Enter') {
+            e.preventDefault();
+            document.querySelector('form').submit();
+        }
+        // Ctrl+L para limpar
+        else if (e.ctrlKey && e.key === 'l') {
+            e.preventDefault();
+            textarea.value = '';
+        }
+    });
+    
+    // Foco automático
+    textarea.focus();
+});
+</script>
+{% endblock %}

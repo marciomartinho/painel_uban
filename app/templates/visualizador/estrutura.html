@@ -1,0 +1,225 @@
+<!-- app/templates/visualizador/estrutura.html -->
+{% extends "base.html" %}
+
+{% block title %}Estrutura do Banco: {{ db_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .card-tabela {
+        transition: transform 0.2s;
+    }
+    
+    .card-tabela:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .badge-registros {
+        font-size: 0.9em;
+    }
+    
+    .tabela-colunas {
+        max-height: 250px;
+        overflow-y: auto;
+    }
+    
+    .search-box {
+        margin-bottom: 20px;
+    }
+    
+    .tipo-tabela {
+        font-size: 0.8em;
+        margin-left: 10px;
+    }
+    
+    /* Cores diferentes para tipos de tabelas */
+    .card-dimensao .card-header {
+        background-color: #17a2b8;
+        color: white;
+    }
+    
+    .card-fato .card-header {
+        background-color: #28a745;
+        color: white;
+    }
+    
+    .card-view .card-header {
+        background-color: #6c757d;
+        color: white;
+    }
+    
+    .card-nova .card-header {
+        background-color: #ffc107;
+        color: #212529;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <a href="{{ url_for('visualizador.index') }}" class="btn btn-secondary">
+                ← Voltar
+            </a>
+            <h1 class="d-inline ml-3">Estrutura do Banco: {{ db_name }}</h1>
+            <span class="badge badge-info ml-2">{{ estrutura|length }} tabelas</span>
+        </div>
+    </div>
+    
+    <!-- Barra de pesquisa -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="search-box">
+                <input type="text" class="form-control" id="searchTable" 
+                       placeholder="🔍 Pesquisar tabelas..." 
+                       onkeyup="filtrarTabelas()">
+            </div>
+        </div>
+    </div>
+    
+    <!-- Estatísticas rápidas -->
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="alert alert-light">
+                <strong>Resumo:</strong>
+                {% set total_registros = estrutura.values() | sum(attribute='total_registros') %}
+                {% set tabelas_padrao = ['categorias', 'origens', 'especies', 'especificacoes', 'alineas', 'fontes', 'contas', 'unidades_gestoras'] %}
+                {% set tabelas_dimensao_count = 0 %}
+                {% set views_count = 0 %}
+                {% set tabelas_novas_count = 0 %}
+                
+                {% for tabela in estrutura.keys() %}
+                    {% if tabela in tabelas_padrao %}
+                        {% set tabelas_dimensao_count = tabelas_dimensao_count + 1 %}
+                    {% elif tabela.startswith('v_') %}
+                        {% set views_count = views_count + 1 %}
+                    {% else %}
+                        {% set tabelas_novas_count = tabelas_novas_count + 1 %}
+                    {% endif %}
+                {% endfor %}
+                
+                <span class="mr-3">📊 Total de registros: <strong>{{ "{:,}".format(total_registros) }}</strong></span>
+                <span class="mr-3">📁 Tabelas de dimensão padrão: <strong>{{ tabelas_dimensao_count }}</strong></span>
+                {% if tabelas_novas_count > 0 %}
+                <span class="mr-3">🆕 Tabelas adicionais: <strong>{{ tabelas_novas_count }}</strong></span>
+                {% endif %}
+                <span>👁️ Views: <strong>{{ views_count }}</strong></span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row" id="tabelasContainer">
+        {% for tabela, info in estrutura.items()|sort %}
+        {% set tabelas_padrao = ['categorias', 'origens', 'especies', 'especificacoes', 'alineas', 'fontes', 'contas', 'unidades_gestoras'] %}
+        {% set tipo_card = 'card-dimensao' if tabela in tabelas_padrao 
+                          else 'card-view' if tabela.startswith('v_') 
+                          else 'card-fato' if tabela.startswith('fato_') 
+                          else 'card-nova' %}
+        
+        <div class="col-lg-6 col-xl-4 mb-4 tabela-card" data-tabela="{{ tabela|lower }}">
+            <div class="card card-tabela {{ tipo_card }}">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        {{ tabela }}
+                        {% if tabela.startswith('v_') %}
+                            <span class="tipo-tabela badge badge-secondary">VIEW</span>
+                        {% elif tabela not in tabelas_padrao and not tabela.startswith('fato_') %}
+                            <span class="tipo-tabela badge badge-warning">NOVA</span>
+                        {% endif %}
+                        <span class="badge badge-light float-right badge-registros">
+                            {{ "{:,}".format(info.total_registros) }} registros
+                        </span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <h6>Colunas ({{ info.colunas|length }}):</h6>
+                    <div class="table-responsive tabela-colunas">
+                        <table class="table table-sm table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Tipo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for coluna in info.colunas %}
+                                <tr>
+                                    <td><code>{{ coluna.nome }}</code></td>
+                                    <td><small class="text-muted">{{ coluna.tipo }}</small></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="mt-3">
+                        {% if not tabela.startswith('v_') %}
+                        <a href="{{ url_for('visualizador.visualizar_dados', db_name=db_name, table_name=tabela) }}" 
+                           class="btn btn-primary btn-sm">
+                            <i class="fas fa-eye"></i> Ver Dados
+                        </a>
+                        <a href="{{ url_for('visualizador.exportar_dados', db_name=db_name, table_name=tabela) }}" 
+                           class="btn btn-success btn-sm">
+                            <i class="fas fa-file-excel"></i> Excel
+                        </a>
+                        {% else %}
+                        <span class="text-muted small">Views não podem ser exportadas diretamente</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Mensagem quando não há resultados na pesquisa -->
+    <div class="row" id="semResultados" style="display: none;">
+        <div class="col-md-12">
+            <div class="alert alert-warning text-center">
+                <h5>Nenhuma tabela encontrada</h5>
+                <p>Tente ajustar sua pesquisa.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filtrarTabelas() {
+    const input = document.getElementById('searchTable');
+    const filter = input.value.toLowerCase();
+    const cards = document.getElementsByClassName('tabela-card');
+    let visibleCount = 0;
+    
+    for (let i = 0; i < cards.length; i++) {
+        const tabelaNome = cards[i].getAttribute('data-tabela');
+        if (tabelaNome.indexOf(filter) > -1) {
+            cards[i].style.display = '';
+            visibleCount++;
+        } else {
+            cards[i].style.display = 'none';
+        }
+    }
+    
+    // Mostra/esconde mensagem de "sem resultados"
+    document.getElementById('semResultados').style.display = 
+        visibleCount === 0 ? 'block' : 'none';
+}
+
+// Adiciona atalhos de teclado
+document.addEventListener('DOMContentLoaded', function() {
+    // Foco automático na busca
+    document.getElementById('searchTable').focus();
+    
+    // Atalho Ctrl+F para busca
+    document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.key === 'f') {
+            e.preventDefault();
+            document.getElementById('searchTable').focus();
+        }
+    });
+});
+</script>
+{% endblock %}

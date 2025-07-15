@@ -1,0 +1,254 @@
+<!-- app/templates/visualizador/index.html -->
+{% extends "base.html" %}
+
+{% block title %}Visualizador de Dados{% endblock %}
+
+{% block extra_css %}
+<style>
+    .banco-card {
+        transition: all 0.3s ease;
+    }
+    
+    .banco-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .status-indicator {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 5px;
+    }
+    
+    .status-ok {
+        background-color: #28a745;
+    }
+    
+    .status-erro {
+        background-color: #dc3545;
+    }
+    
+    .tabelas-count {
+        font-size: 0.8em;
+        opacity: 0.8;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="text-center mb-4">
+        <i class="fas fa-database"></i> Visualizador de Dados
+    </h1>
+    
+    <div class="row">
+        <div class="col-md-12">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> <strong>Bem-vindo ao Visualizador!</strong> 
+                Este módulo permite explorar os dados brutos dos bancos de dados de forma interativa.
+                Todas as tabelas (incluindo novas adições) são detectadas automaticamente.
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <!-- Banco de Saldos -->
+        <div class="col-md-4">
+            <div class="card banco-card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        {% if status_bancos.saldos.existe %}
+                            <span class="status-indicator status-ok"></span>
+                        {% else %}
+                            <span class="status-indicator status-erro"></span>
+                        {% endif %}
+                        Banco de Saldos
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <p>Contém os saldos consolidados por período.</p>
+                    {% if status_bancos.saldos.existe %}
+                        <p class="tabelas-count">
+                            <i class="fas fa-table"></i> {{ status_bancos.saldos.tabelas }} tabelas encontradas
+                        </p>
+                        <a href="{{ url_for('visualizador.estrutura_banco', db_name='saldos') }}" 
+                           class="btn btn-primary btn-block">
+                            <i class="fas fa-eye"></i> Ver Estrutura
+                        </a>
+                    {% else %}
+                        <div class="alert alert-warning mb-2">
+                            <small>Banco não encontrado. Execute o conversor de saldos primeiro.</small>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Banco de Lançamentos -->
+        <div class="col-md-4">
+            <div class="card banco-card">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">
+                        {% if status_bancos.lancamentos.existe %}
+                            <span class="status-indicator status-ok"></span>
+                        {% else %}
+                            <span class="status-indicator status-erro"></span>
+                        {% endif %}
+                        Banco de Lançamentos
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <p>Contém todos os lançamentos detalhados.</p>
+                    {% if status_bancos.lancamentos.existe %}
+                        <p class="tabelas-count">
+                            <i class="fas fa-table"></i> {{ status_bancos.lancamentos.tabelas }} tabelas encontradas
+                        </p>
+                        <a href="{{ url_for('visualizador.estrutura_banco', db_name='lancamentos') }}" 
+                           class="btn btn-success btn-block">
+                            <i class="fas fa-eye"></i> Ver Estrutura
+                        </a>
+                    {% else %}
+                        <div class="alert alert-warning mb-2">
+                            <small>Banco não encontrado. Execute o conversor de lançamentos primeiro.</small>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Banco de Dimensões -->
+        <div class="col-md-4">
+            <div class="card banco-card">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">
+                        {% if status_bancos.dimensoes.existe %}
+                            <span class="status-indicator status-ok"></span>
+                        {% else %}
+                            <span class="status-indicator status-erro"></span>
+                        {% endif %}
+                        Banco de Dimensões
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <p>Contém as tabelas de dimensões e classificações.</p>
+                    {% if status_bancos.dimensoes.existe %}
+                        <p class="tabelas-count">
+                            <i class="fas fa-table"></i> {{ status_bancos.dimensoes.tabelas }} tabelas encontradas
+                        </p>
+                        <a href="{{ url_for('visualizador.estrutura_banco', db_name='dimensoes') }}" 
+                           class="btn btn-info btn-block">
+                            <i class="fas fa-eye"></i> Ver Estrutura
+                        </a>
+                    {% else %}
+                        <div class="alert alert-warning mb-2">
+                            <small>Banco não encontrado. Execute o conversor de dimensões primeiro.</small>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- SQL Query Section -->
+    <div class="row mt-5">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-terminal"></i> SQL Query Personalizada
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <p>Execute queries SQL customizadas (apenas SELECT) em qualquer banco disponível.</p>
+                    
+                    <div class="row">
+                        {% if status_bancos.saldos.existe %}
+                        <div class="col-md-4">
+                            <a href="{{ url_for('visualizador.executar_query', db_name='saldos') }}" 
+                               class="btn btn-outline-primary btn-block mb-2">
+                                <i class="fas fa-database"></i> Query em Saldos
+                            </a>
+                        </div>
+                        {% endif %}
+                        
+                        {% if status_bancos.lancamentos.existe %}
+                        <div class="col-md-4">
+                            <a href="{{ url_for('visualizador.executar_query', db_name='lancamentos') }}" 
+                               class="btn btn-outline-success btn-block mb-2">
+                                <i class="fas fa-database"></i> Query em Lançamentos
+                            </a>
+                        </div>
+                        {% endif %}
+                        
+                        {% if status_bancos.dimensoes.existe %}
+                        <div class="col-md-4">
+                            <a href="{{ url_for('visualizador.executar_query', db_name='dimensoes') }}" 
+                               class="btn btn-outline-info btn-block mb-2">
+                                <i class="fas fa-database"></i> Query em Dimensões
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    {% if not (status_bancos.saldos.existe or status_bancos.lancamentos.existe or status_bancos.dimensoes.existe) %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i> 
+                        Nenhum banco de dados encontrado. Execute os conversores primeiro.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Dicas e Atalhos -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-lightbulb"></i> Dicas Úteis
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0">
+                        <li><strong>Novas tabelas:</strong> São detectadas automaticamente quando você adiciona novos CSVs e executa o conversor</li>
+                        <li><strong>Filtros:</strong> Use os filtros rápidos para encontrar dados específicos</li>
+                        <li><strong>Exportação:</strong> Exporte qualquer tabela para Excel com um clique</li>
+                        <li><strong>SQL:</strong> Use queries SQL para análises mais complexas</li>
+                        <li><strong>Pesquisa:</strong> Use Ctrl+F na página de estrutura para encontrar tabelas rapidamente</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Adiciona tooltips
+$(function () {
+    $('[data-toggle="tooltip"]').tooltip()
+});
+
+// Animação suave ao carregar
+document.addEventListener('DOMContentLoaded', function() {
+    const cards = document.querySelectorAll('.banco-card');
+    cards.forEach((card, index) => {
+        setTimeout(() => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            card.style.transition = 'all 0.5s ease';
+            
+            setTimeout(() => {
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, 50);
+        }, index * 100);
+    });
+});
+</script>
+{% endblock %}

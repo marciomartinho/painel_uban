@@ -1,0 +1,130 @@
+{# templates/relatorios/index.html #}
+{% extends "base.html" %}
+
+{% block title %}Relatórios{% endblock %}
+
+{% block head %}
+<style>
+    .card-relatorio {
+        transition: transform 0.2s;
+        cursor: pointer;
+        min-height: 200px;
+    }
+    
+    .card-relatorio:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }
+    
+    .card-relatorio .card-body {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    
+    .categoria-header {
+        background-color: #f8f9fa;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-left: 4px solid #003366;
+    }
+    
+    .periodo-info {
+        background-color: #e9ecef;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 30px;
+        text-align: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">Central de Relatórios</h1>
+    
+    <div class="periodo-info">
+        <h5>Período de Referência: <strong>{{ periodo.periodo_completo }}</strong></h5>
+        <small class="text-muted">Os relatórios serão gerados com dados até {{ periodo.mes_nome }}/{{ periodo.ano }}</small>
+    </div>
+    
+    <!-- Relatórios de Receita -->
+    <div class="categoria-header">
+        <h3><i class="fas fa-chart-line"></i> Relatórios de Receita</h3>
+    </div>
+    
+    <div class="row mb-5">
+        <div class="col-md-4 mb-4">
+            <div class="card card-relatorio" onclick="location.href='{{ url_for('relatorios.balanco_orcamentario_receita') }}'">
+                <div class="card-body">
+                    <div>
+                        <h5 class="card-title">
+                            <i class="fas fa-balance-scale text-primary"></i> 
+                            Balanço Orçamentário da Receita
+                        </h5>
+                        <p class="card-text">
+                            Demonstrativo comparativo entre a previsão e a realização das receitas, 
+                            com análise de variações entre exercícios.
+                        </p>
+                    </div>
+                    <div class="mt-3">
+                        <span class="badge badge-primary">Comparativo</span>
+                        <span class="badge badge-info">Hierárquico</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+            <div class="card card-relatorio" onclick="alert('Em desenvolvimento')">
+                <div class="card-body">
+                    <div>
+                        <h5 class="card-title">
+                            <i class="fas fa-chart-bar text-success"></i> 
+                            Receita por Categoria
+                        </h5>
+                        <p class="card-text">
+                            Análise detalhada das receitas agrupadas por categoria, 
+                            origem e espécie com gráficos comparativos.
+                        </p>
+                    </div>
+                    <div class="mt-3">
+                        <span class="badge badge-secondary">Em breve</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+            <div class="card card-relatorio" onclick="alert('Em desenvolvimento')">
+                <div class="card-body">
+                    <div>
+                        <h5 class="card-title">
+                            <i class="fas fa-building text-warning"></i> 
+                            Receita por Unidade Gestora
+                        </h5>
+                        <p class="card-text">
+                            Demonstrativo das receitas arrecadadas por cada órgão 
+                            e unidade administrativa.
+                        </p>
+                    </div>
+                    <div class="mt-3">
+                        <span class="badge badge-secondary">Em breve</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Futuros: Relatórios de Despesa -->
+    <div class="categoria-header">
+        <h3><i class="fas fa-money-check-alt"></i> Relatórios de Despesa</h3>
+    </div>
+    
+    <div class="row">
+        <div class="col-12">
+            <p class="text-muted">Relatórios de despesa serão adicionados em breve...</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

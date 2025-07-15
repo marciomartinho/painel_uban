@@ -1,0 +1,38 @@
+{# templates/erro.html #}
+{% extends "base.html" %}
+
+{% block title %}Erro{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center mt-5">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-exclamation-triangle text-warning" style="font-size: 4rem;"></i>
+                    <h2 class="mt-3">Ops! Algo deu errado</h2>
+                    <p class="lead">{{ mensagem }}</p>
+                    
+                    <div class="mt-4">
+                        <a href="{{ url_for('index') }}" class="btn btn-primary">
+                            <i class="fas fa-home"></i> Voltar ao Início
+                        </a>
+                        <a href="{{ url_for('relatorios.index') }}" class="btn btn-secondary">
+                            <i class="fas fa-file-alt"></i> Ver Relatórios
+                        </a>
+                    </div>
+                    
+                    <div class="mt-5 text-muted">
+                        <p>Se o problema persistir, verifique:</p>
+                        <ul class="list-unstyled">
+                            <li>✓ Os conversores foram executados?</li>
+                            <li>✓ Os arquivos de dados estão na pasta correta?</li>
+                            <li>✓ Os bancos de dados foram criados em dados/db/?</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

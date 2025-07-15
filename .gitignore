@@ -1,0 +1,10 @@
+# Ignorar todos os arquivos de banco de dados
+dados/db/
+
+# Ignorar todos os arquivos de dados brutos (Excel, CSV, etc.)
+dados/dados_brutos/
+
+# Opcional: Ignorar arquivos específicos do sistema operacional ou IDE
+.DS_Store
+*.pyc
+__pycache__/

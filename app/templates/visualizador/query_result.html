@@ -1,0 +1,87 @@
+<!-- app/templates/visualizador/query_result.html -->
+{% extends "base.html" %}
+
+{% block title %}Resultado da Query - {{ db_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .query-box {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        font-family: 'Courier New', monospace;
+        margin-bottom: 20px;
+    }
+    
+    .result-table {
+        max-height: 600px;
+        overflow: auto;
+    }
+    
+    .result-table th {
+        position: sticky;
+        top: 0;
+        background-color: #343a40;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <a href="{{ url_for('visualizador.executar_query', db_name=db_name) }}" class="btn btn-secondary">
+                ← Nova Query
+            </a>
+            <h1 class="d-inline ml-3">Resultado da Query</h1>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-12">
+            <div class="query-box">
+                <strong>Query executada:</strong><br>
+                <code>{{ query }}</code>
+            </div>
+            
+            <div class="alert alert-info">
+                <strong>{{ total_registros }}</strong> registro(s) retornado(s)
+            </div>
+            
+            {% if dados %}
+            <div class="result-table">
+                <table class="table table-sm table-striped table-bordered">
+                    <thead>
+                        <tr>
+                            {% for coluna in colunas %}
+                            <th>{{ coluna }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in dados %}
+                        <tr>
+                            {% for coluna in colunas %}
+                            <td>
+                                {% if row[coluna] is none %}
+                                <span class="text-muted">NULL</span>
+                                {% else %}
+                                {{ row[coluna] }}
+                                {% endif %}
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-warning">
+                Nenhum resultado encontrado.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
