@@ -191,6 +191,117 @@ def create_app():
         print("✅ Blueprints carregados com sucesso")
     except ImportError as e:
         print(f"⚠️  Blueprints não encontrados: {e}")
+
+    # Rota para setup de tabelas extras
+    @app.route('/setup-extras')
+    def setup_extras():
+        """Setup das tabelas extras PostgreSQL"""
+        try:
+            if not (os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('DATABASE_URL')):
+                return "❌ Só permitido em produção (Railway)"
+            
+            import psycopg2
+            
+            # Conecta ao PostgreSQL
+            database_url = os.environ.get('DATABASE_URL')
+            conn = psycopg2.connect(database_url)
+            cursor = conn.cursor()
+            
+            # Cria schema dimensoes se não existir
+            cursor.execute("CREATE SCHEMA IF NOT EXISTS dimensoes")
+            
+            # Cria tabela unidades_gestoras
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS dimensoes.unidades_gestoras (
+                    COUG VARCHAR(10) PRIMARY KEY,
+                    NOUG VARCHAR(100) NOT NULL
+                )
+            """)
+            
+            # Insere dados de exemplo
+            cursor.execute("""
+                INSERT INTO dimensoes.unidades_gestoras (COUG, NOUG) 
+                VALUES 
+                    ('001', 'Secretaria de Administração'),
+                    ('002', 'Secretaria de Finanças'),
+                    ('003', 'Secretaria de Educação'),
+                    ('004', 'Secretaria de Saúde'),
+                    ('005', 'Secretaria de Obras')
+                ON CONFLICT (COUG) DO NOTHING
+            """)
+            
+            # Cria outras tabelas dimensões
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS dimensoes.categorias (
+                    COCATEGORIARECEITA VARCHAR(10) PRIMARY KEY,
+                    NOCATEGORIARECEITA VARCHAR(100) NOT NULL
+                )
+            """)
+            
+            cursor.execute("""
+                INSERT INTO dimensoes.categorias (COCATEGORIARECEITA, NOCATEGORIARECEITA) 
+                VALUES 
+                    ('1000', 'Receitas Correntes'),
+                    ('2000', 'Receitas de Capital'),
+                    ('3000', 'Receitas Intraorçamentárias'),
+                    ('9000', 'Deduções das Receitas')
+                ON CONFLICT (COCATEGORIARECEITA) DO NOTHING
+            """)
+            
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS dimensoes.origens (
+                    COFONTERECEITA VARCHAR(10) PRIMARY KEY,
+                    NOFONTERECEITA VARCHAR(100) NOT NULL
+                )
+            """)
+            
+            cursor.execute("""
+                INSERT INTO dimensoes.origens (COFONTERECEITA, NOFONTERECEITA) 
+                VALUES 
+                    ('100', 'Receitas Próprias'),
+                    ('200', 'Transferências Federais'),
+                    ('300', 'Transferências Estaduais'),
+                    ('400', 'Outras Receitas')
+                ON CONFLICT (COFONTERECEITA) DO NOTHING
+            """)
+            
+            # Commit das alterações
+            conn.commit()
+            
+            # Verifica tabelas criadas
+            cursor.execute("""
+                SELECT table_name FROM information_schema.tables 
+                WHERE table_schema = 'dimensoes'
+            """)
+            
+            tabelas = cursor.fetchall()
+            lista_tabelas = [tabela[0] for tabela in tabelas]
+            
+            cursor.close()
+            conn.close()
+            
+            return f"""
+            <h1>✅ Tabelas Extras Criadas!</h1>
+            <p>Schema 'dimensoes' e tabelas relacionadas foram criadas</p>
+            <h3>Tabelas criadas ({len(lista_tabelas)}):</h3>
+            <ul>
+                {''.join(f'<li>{tabela}</li>' for tabela in lista_tabelas)}
+            </ul>
+            <h3>Próximos passos:</h3>
+            <ul>
+                <li><a href="/test-db">🔧 Testar Banco de Dados</a></li>
+                <li><a href="/relatorios/balanco-orcamentario-receita">📊 Testar Relatório</a></li>
+                <li><a href="/">🏠 Página Principal</a></li>
+            </ul>
+            """
+            
+        except Exception as e:
+            return f"""
+            <h1>❌ Erro ao criar tabelas extras</h1>
+            <p><strong>Erro:</strong> {str(e)}</p>
+            <p><a href="/setup-db">🔄 Tentar setup básico novamente</a></p>
+            """
+
     
     return app
 
