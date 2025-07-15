@@ -51,11 +51,13 @@ def obter_periodo_referencia():
             9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"
         }
         
+        mes_nome = meses_nomes.get(mes, "Mês Inválido")
+        
         return {
             'mes': mes,
             'ano': ano,
-            'mes_nome': meses_nomes.get(mes, ""),
-            'periodo_completo': f"{meses_nomes.get(mes, "")}/{ano}"
+            'mes_nome': mes_nome,
+            'periodo_completo': f"{mes_nome}/{ano}"
         }
     
     # Retorno padrão se não encontrar dados
@@ -100,31 +102,35 @@ def get_filtro_comparativo():
     """Retorna filtro para buscar dados dos dois anos para comparação"""
     periodo = obter_periodo_referencia()
     if periodo:
-        return f"""
+        filtro = f"""
         ((COEXERCICIO = {periodo['ano']} AND INMES <= {periodo['mes']}) 
         OR 
         (COEXERCICIO = {periodo['ano'] - 1} AND INMES <= {periodo['mes']}))
         """
+        return filtro
     return "1=1"
 
 def get_periodos_comparacao():
     """Retorna informações dos dois períodos para comparação"""
     periodo_atual = obter_periodo_referencia()
     if periodo_atual:
+        ano_anterior = periodo_atual['ano'] - 1
+        mes_nome = periodo_atual['mes_nome']
+        
         return {
             'atual': {
                 'ano': periodo_atual['ano'],
                 'mes': periodo_atual['mes'],
-                'mes_nome': periodo_atual['mes_nome'],
-                'label': f"{periodo_atual['mes_nome']}/{periodo_atual['ano']}"
+                'mes_nome': mes_nome,
+                'label': f"{mes_nome}/{periodo_atual['ano']}"
             },
             'anterior': {
-                'ano': periodo_atual['ano'] - 1,
+                'ano': ano_anterior,
                 'mes': periodo_atual['mes'],
-                'mes_nome': periodo_atual['mes_nome'],
-                'label': f"{periodo_atual['mes_nome']}/{periodo_atual['ano'] - 1}"
+                'mes_nome': mes_nome,
+                'label': f"{mes_nome}/{ano_anterior}"
             },
-            'titulo_comparativo': f"{periodo_atual['mes_nome']}/{periodo_atual['ano'] - 1} vs {periodo_atual['mes_nome']}/{periodo_atual['ano']}"
+            'titulo_comparativo': f"{mes_nome}/{ano_anterior} vs {mes_nome}/{periodo_atual['ano']}"
         }
     return None
 
@@ -154,12 +160,15 @@ def get_meses_disponiveis():
         
         meses_disponiveis = []
         for ano, mes, nome_mes in resultados:
+            valor_formatado = f"{ano}-{mes:02d}"
+            label_formatado = f"{nome_mes}/{ano}"
+            
             meses_disponiveis.append({
                 'ano': ano,
                 'mes': mes,
                 'mes_nome': nome_mes,
-                'valor': f"{ano}-{mes:02d}",
-                'label': f"{nome_mes}/{ano}"
+                'valor': valor_formatado,
+                'label': label_formatado
             })
         
         return meses_disponiveis
