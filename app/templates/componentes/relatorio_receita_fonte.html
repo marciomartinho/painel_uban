@@ -1,0 +1,581 @@
+<!-- app/templates/componentes/relatorio_receita_fonte.html -->
+<div class="relatorio-receita-fonte-container" id="relatorio-receita-fonte">
+    <div class="relatorio-header">
+        <h3>
+            <i class="fas fa-table"></i> 
+            Relatório Detalhado
+            {% if filtro_ativo %}
+                <span class="filtro-badge">{{ filtro_descricao }}</span>
+            {% endif %}
+        </h3>
+        <div class="relatorio-controls">
+            <button id="btn-por-receita" class="btn-tipo active" onclick="mudarTipoRelatorio('receita')">
+                <i class="fas fa-receipt"></i> Relatório por Código de Receita
+            </button>
+            <button id="btn-por-fonte" class="btn-tipo" onclick="mudarTipoRelatorio('fonte')">
+                <i class="fas fa-coins"></i> Relatório por Código de Fonte
+            </button>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-bordered" id="tabela-receita-fonte">
+            <thead>
+                <tr>
+                    <th class="col-descricao-rf">
+                        <span id="header-tipo">Código de Receita</span>
+                    </th>
+                    <th class="col-valor-rf">Previsão Inicial {{ periodo.ano }}</th>
+                    <th class="col-valor-rf">Previsão Atualizada {{ periodo.ano }}</th>
+                    <th class="col-valor-rf">Receita Realizada {{ "%02d"|format(periodo.mes) }}/{{ periodo.ano }}</th>
+                    <th class="col-valor-rf">Receita Realizada {{ "%02d"|format(periodo.mes) }}/{{ periodo.ano - 1 }}</th>
+                    <th class="col-variacao-rf">
+                        Variação {{ periodo.ano }} x {{ periodo.ano - 1 }}
+                        <div class="variacao-subheader-rf">
+                            <span>Absoluta</span>
+                            <span>%</span>
+                        </div>
+                    </th>
+                </tr>
+            </thead>
+            <tbody id="tbody-relatorio">
+                <!-- Conteúdo será preenchido via JavaScript -->
+            </tbody>
+            <tfoot>
+                <tr class="total-geral-rf">
+                    <td>TOTAL GERAL</td>
+                    <td id="total-previsao-inicial">R$ 0,00</td>
+                    <td id="total-previsao-atualizada">R$ 0,00</td>
+                    <td id="total-receita-atual">R$ 0,00</td>
+                    <td id="total-receita-anterior">R$ 0,00</td>
+                    <td>
+                        <div class="variacao-cells-rf">
+                            <span id="total-variacao-absoluta" class="variacao-valor-rf">R$ 0,00</span>
+                            <span id="total-variacao-percentual" class="variacao-percentual-rf">0,00%</span>
+                        </div>
+                    </td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <div class="empty-state-relatorio" id="empty-state-relatorio" style="display: none;">
+        <i class="fas fa-inbox fa-3x"></i>
+        <p>Nenhum dado encontrado para os filtros selecionados.</p>
+    </div>
+</div>
+
+<style>
+/* Estilos específicos para o componente Relatório Receita/Fonte */
+.relatorio-receita-fonte-container {
+    background: white;
+    padding: 30px;
+    margin-top: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.relatorio-receita-fonte-container .relatorio-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.relatorio-receita-fonte-container .relatorio-header h3 {
+    color: #1e3c72;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.relatorio-receita-fonte-container .filtro-badge {
+    background: #2a5298;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 0.75em;
+    font-weight: normal;
+}
+
+.relatorio-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-tipo {
+    background: #f0f4f8;
+    color: #5a6c7d;
+    border: 1px solid #e2e8f0;
+    padding: 10px 20px;
+    font-size: 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-tipo:hover {
+    background-color: #e2e8f0;
+    border-color: #cbd5e0;
+}
+
+.btn-tipo.active {
+    background-color: #2a5298;
+    color: white;
+    border-color: #1e3c72;
+    font-weight: 600;
+}
+
+/* Tabela do Relatório Receita/Fonte */
+#tabela-receita-fonte {
+    width: 100%;
+    min-width: 1000px;
+}
+
+#tabela-receita-fonte thead {
+    background: #1e3c72;
+    color: white;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+#tabela-receita-fonte th {
+    padding: 15px 10px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+    vertical-align: middle;
+}
+
+#tabela-receita-fonte th.col-descricao-rf {
+    text-align: left;
+    min-width: 350px;
+}
+
+#tabela-receita-fonte th.col-valor-rf {
+    min-width: 150px;
+}
+
+#tabela-receita-fonte th.col-variacao-rf {
+    min-width: 200px;
+}
+
+.variacao-subheader-rf {
+    display: flex;
+    width: 100%;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    margin-top: 5px;
+    padding-top: 5px;
+    font-size: 11px;
+    font-weight: normal;
+}
+
+.variacao-subheader-rf span {
+    flex: 1;
+    text-align: center;
+}
+
+/* Linhas da tabela */
+#tabela-receita-fonte tbody tr {
+    border-bottom: 1px solid #e8ecf0;
+}
+
+#tabela-receita-fonte tbody tr:hover {
+    background-color: #f8fafc;
+}
+
+#tabela-receita-fonte tbody td {
+    padding: 12px 10px;
+    text-align: right;
+    font-size: 14px;
+    vertical-align: middle;
+}
+
+#tabela-receita-fonte tbody td:first-child {
+    text-align: left;
+    font-weight: 500;
+}
+
+/* Níveis hierárquicos do relatório RF */
+#tabela-receita-fonte .nivel-rf-0 {
+    background-color: #f0f4f8;
+    font-weight: 600;
+}
+
+#tabela-receita-fonte .nivel-rf-0 td:first-child {
+    color: #1e3c72;
+    font-size: 15px;
+}
+
+#tabela-receita-fonte .nivel-rf-1 {
+    display: none; /* Inicia colapsado */
+}
+
+#tabela-receita-fonte .nivel-rf-1 td:first-child {
+    padding-left: 45px;
+    color: #5a6c7d;
+    font-size: 13px;
+    font-weight: 400;
+}
+
+/* Botão de expandir/colapsar RF */
+.btn-expandir-rf {
+    background: none;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 8px;
+    transition: all 0.2s ease;
+}
+
+.btn-expandir-rf:hover {
+    background-color: #f0f0f0;
+    border-color: #999;
+}
+
+.btn-expandir-rf .icone {
+    font-size: 10px;
+    line-height: 1;
+}
+
+/* Total geral RF */
+.total-geral-rf {
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    color: white;
+    font-weight: 700;
+}
+
+.total-geral-rf td {
+    padding: 20px 10px;
+    font-size: 16px;
+    border-top: 3px solid #1e3c72;
+}
+
+/* Valores e variações RF */
+.variacao-cells-rf {
+    display: flex;
+    gap: 20px;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.variacao-valor-rf {
+    min-width: 120px;
+    text-align: right;
+}
+
+.variacao-percentual-rf {
+    min-width: 60px;
+    text-align: right;
+}
+
+#tabela-receita-fonte .valor-positivo-rf {
+    color: #27ae60;
+    font-weight: 600;
+}
+
+#tabela-receita-fonte .valor-negativo-rf {
+    color: #e74c3c;
+    font-weight: 600;
+}
+
+/* Empty state */
+.empty-state-relatorio {
+    text-align: center;
+    padding: 80px 20px;
+    color: #7f8c8d;
+}
+
+.empty-state-relatorio i {
+    color: #cbd5e0;
+    margin-bottom: 20px;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .relatorio-receita-fonte-container .relatorio-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .relatorio-controls {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .btn-tipo {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Impressão */
+@media print {
+    .relatorio-receita-fonte-container {
+        page-break-inside: avoid;
+    }
+    
+    .relatorio-controls {
+        display: none;
+    }
+    
+    #tabela-receita-fonte .nivel-rf-1 {
+        display: table-row !important;
+    }
+    
+    .btn-expandir-rf {
+        display: none !important;
+    }
+}
+</style>
+
+<script>
+// Namespace para evitar conflitos
+window.RelatorioReceitaFonte = (function() {
+    // Variáveis privadas
+    let tipoRelatorioAtual = 'receita';
+    let dadosRelatorioReceita = null;
+    let dadosRelatorioFonte = null;
+
+    // Função para mudar tipo de relatório
+    async function mudarTipoRelatorio(tipo) {
+        // Atualiza botões
+        document.querySelectorAll('.btn-tipo').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        if (tipo === 'receita') {
+            document.getElementById('btn-por-receita').classList.add('active');
+            document.getElementById('header-tipo').textContent = 'Código de Receita';
+        } else {
+            document.getElementById('btn-por-fonte').classList.add('active');
+            document.getElementById('header-tipo').textContent = 'Código de Fonte';
+        }
+        
+        tipoRelatorioAtual = tipo;
+        
+        // Carrega dados se ainda não foram carregados
+        if (tipo === 'receita' && !dadosRelatorioReceita) {
+            await carregarDadosRelatorio('receita');
+        } else if (tipo === 'fonte' && !dadosRelatorioFonte) {
+            await carregarDadosRelatorio('fonte');
+        } else {
+            // Usa dados já carregados
+            renderizarRelatorio(tipo === 'receita' ? dadosRelatorioReceita : dadosRelatorioFonte);
+        }
+    }
+
+    // Função para carregar dados do relatório
+    async function carregarDadosRelatorio(tipo) {
+        const tbody = document.getElementById('tbody-relatorio');
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">Carregando dados...</td></tr>';
+        
+        try {
+            // Monta URL com parâmetros atuais
+            const urlParams = new URLSearchParams(window.location.search);
+            const url = new URL(`${window.location.origin}/relatorios/api/relatorio-receita-fonte`);
+            
+            // Adiciona parâmetros
+            url.searchParams.set('tipo', tipo);
+            url.searchParams.set('ano', {{ periodo.ano }});
+            url.searchParams.set('mes', {{ periodo.mes }});
+            
+            // Adiciona COUG se selecionada
+            const coug = urlParams.get('coug');
+            if (coug) url.searchParams.set('coug', coug);
+            
+            // Adiciona filtro de receita se ativo
+            const filtro = urlParams.get('filtro');
+            if (filtro) url.searchParams.set('filtro', filtro);
+            
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.erro || 'Erro ao carregar dados');
+            }
+            
+            // Armazena dados em cache
+            if (tipo === 'receita') {
+                dadosRelatorioReceita = data;
+            } else {
+                dadosRelatorioFonte = data;
+            }
+            
+            // Renderiza
+            renderizarRelatorio(data);
+            
+        } catch (error) {
+            console.error('Erro ao carregar relatório:', error);
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Erro ao carregar dados: ${error.message}</td></tr>`;
+        }
+    }
+
+    // Função para renderizar o relatório
+    function renderizarRelatorio(data) {
+        const tbody = document.getElementById('tbody-relatorio');
+        const emptyState = document.getElementById('empty-state-relatorio');
+        const table = document.querySelector('#relatorio-receita-fonte .table-responsive');
+        
+        if (!data || !data.dados || data.dados.length === 0) {
+            table.style.display = 'none';
+            emptyState.style.display = 'block';
+            return;
+        }
+        
+        table.style.display = 'block';
+        emptyState.style.display = 'none';
+        
+        // Limpa tbody
+        tbody.innerHTML = '';
+        
+        // Renderiza dados
+        data.dados.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.className = `nivel-rf-${item.nivel}`;
+            tr.dataset.id = item.id;
+            if (item.pai_id) {
+                tr.dataset.paiId = item.pai_id;
+            }
+            
+            // Célula de descrição
+            const tdDescricao = document.createElement('td');
+            
+            if (item.tem_filhos) {
+                // Adiciona botão de expandir/colapsar
+                const btnExpandir = document.createElement('button');
+                btnExpandir.className = 'btn-expandir-rf';
+                btnExpandir.dataset.id = item.id;
+                btnExpandir.innerHTML = '<span class="icone">▶</span>';
+                btnExpandir.onclick = () => toggleExpansaoRF(item.id);
+                tdDescricao.appendChild(btnExpandir);
+            }
+            
+            const spanDescricao = document.createElement('span');
+            spanDescricao.textContent = `${item.codigo} - ${item.descricao}`;
+            tdDescricao.appendChild(spanDescricao);
+            
+            tr.appendChild(tdDescricao);
+            
+            // Células de valores
+            const valores = [
+                item.previsao_inicial,
+                item.previsao_atualizada,
+                item.receita_atual,
+                item.receita_anterior
+            ];
+            
+            valores.forEach(valor => {
+                const td = document.createElement('td');
+                td.textContent = formatarMoedaRF(valor);
+                tr.appendChild(td);
+            });
+            
+            // Célula de variação
+            const tdVariacao = document.createElement('td');
+            tdVariacao.innerHTML = `
+                <div class="variacao-cells-rf">
+                    <span class="variacao-valor-rf ${item.variacao_absoluta >= 0 ? 'valor-positivo-rf' : 'valor-negativo-rf'}">
+                        ${formatarMoedaRF(item.variacao_absoluta)}
+                    </span>
+                    <span class="variacao-percentual-rf ${item.variacao_percentual >= 0 ? 'valor-positivo-rf' : 'valor-negativo-rf'}">
+                        ${formatarPercentualRF(item.variacao_percentual)}
+                    </span>
+                </div>
+            `;
+            tr.appendChild(tdVariacao);
+            
+            tbody.appendChild(tr);
+        });
+        
+        // Atualiza totais
+        if (data.totais) {
+            document.getElementById('total-previsao-inicial').textContent = formatarMoedaRF(data.totais.previsao_inicial);
+            document.getElementById('total-previsao-atualizada').textContent = formatarMoedaRF(data.totais.previsao_atualizada);
+            document.getElementById('total-receita-atual').textContent = formatarMoedaRF(data.totais.receita_atual);
+            document.getElementById('total-receita-anterior').textContent = formatarMoedaRF(data.totais.receita_anterior);
+            
+            const totalVariacaoAbsoluta = document.getElementById('total-variacao-absoluta');
+            totalVariacaoAbsoluta.textContent = formatarMoedaRF(data.totais.variacao_absoluta);
+            totalVariacaoAbsoluta.className = `variacao-valor-rf ${data.totais.variacao_absoluta >= 0 ? 'valor-positivo-rf' : 'valor-negativo-rf'}`;
+            
+            const totalVariacaoPercentual = document.getElementById('total-variacao-percentual');
+            totalVariacaoPercentual.textContent = formatarPercentualRF(data.totais.variacao_percentual);
+            totalVariacaoPercentual.className = `variacao-percentual-rf ${data.totais.variacao_percentual >= 0 ? 'valor-positivo-rf' : 'valor-negativo-rf'}`;
+        }
+    }
+
+    // Função para expandir/colapsar
+    function toggleExpansaoRF(id) {
+        const btn = document.querySelector(`.btn-expandir-rf[data-id="${id}"]`);
+        const icone = btn.querySelector('.icone');
+        const filhos = document.querySelectorAll(`#tabela-receita-fonte tr[data-pai-id="${id}"]`);
+        
+        const estaExpandido = icone.textContent === '▼';
+        
+        if (estaExpandido) {
+            // Colapsar
+            icone.textContent = '▶';
+            filhos.forEach(filho => {
+                filho.style.display = 'none';
+            });
+        } else {
+            // Expandir
+            icone.textContent = '▼';
+            filhos.forEach(filho => {
+                filho.style.display = 'table-row';
+            });
+        }
+    }
+
+    // Funções de formatação
+    function formatarMoedaRF(valor) {
+        return new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+        }).format(valor || 0);
+    }
+
+    function formatarPercentualRF(valor) {
+        const sinal = valor > 0 ? '+' : '';
+        return `${sinal}${valor.toFixed(2).replace('.', ',')}%`;
+    }
+
+    // API pública
+    return {
+        mudarTipoRelatorio: mudarTipoRelatorio,
+        init: function() {
+            // Aguarda um pouco para garantir que outros elementos carregaram
+            setTimeout(() => {
+                // Carrega relatório padrão (por receita)
+                mudarTipoRelatorio('receita');
+            }, 500);
+        }
+    };
+})();
+
+// Expor a função mudarTipoRelatorio globalmente para os botões
+window.mudarTipoRelatorio = window.RelatorioReceitaFonte.mudarTipoRelatorio;
+
+// Inicialização quando o DOM estiver pronto
+document.addEventListener('DOMContentLoaded', function() {
+    // Verifica se o elemento existe antes de inicializar
+    if (document.getElementById('relatorio-receita-fonte')) {
+        window.RelatorioReceitaFonte.init();
+    }
+});
+</script>

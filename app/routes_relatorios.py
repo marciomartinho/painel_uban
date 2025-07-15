@@ -19,6 +19,7 @@ from app.modulos.regras_contabeis_receita import get_filtro_conta, FILTROS_RELAT
 from app.modulos.coug_manager import COUGManager
 from app.modulos.comparativo_mensal import gerar_comparativo_mensal
 from app.modulos.cards_unidades_gestoras import gerar_cards_unidades
+from app.modulos.relatorio_receita_fonte import gerar_relatorio_receita_fonte
 
 # Cria o Blueprint
 relatorios_bp = Blueprint('relatorios', __name__, url_prefix='/relatorios')
@@ -261,7 +262,7 @@ class ProcessadorDadosReceita:
                 'codigo': cat_id,
                 'descricao': row['nome_categoria'],
                 'nivel': 0,
-                'classes': 'nivel-0 parent-row',
+                'classes': 'nivel-0',
                 'fontes': {},
                 **self._valores_zerados()
             }
@@ -275,7 +276,7 @@ class ProcessadorDadosReceita:
                 'codigo': fonte_id,
                 'descricao': row['nome_fonte'],
                 'nivel': 1,
-                'classes': 'nivel-1 parent-row child-row',
+                'classes': 'nivel-1 parent-row',
                 'subfontes': {},
                 **self._valores_zerados()
             }
@@ -289,7 +290,7 @@ class ProcessadorDadosReceita:
                 'codigo': subfonte_id,
                 'descricao': row['nome_subfonte'],
                 'nivel': 2,
-                'classes': 'nivel-2 parent-row child-row',
+                'classes': 'nivel-2 parent-row',
                 'alineas': {},
                 **self._valores_zerados()
             }
@@ -304,7 +305,7 @@ class ProcessadorDadosReceita:
                 'codigo': alinea_id,
                 'descricao': alinea_desc,
                 'nivel': 3,
-                'classes': 'nivel-3 child-row',
+                'classes': 'nivel-3',
                 'previsao_inicial': row['previsao_inicial'] or 0,
                 'previsao_atualizada': row['previsao_atualizada'] or 0,
                 'receita_atual': row['receita_atual'] or 0,
@@ -752,6 +753,43 @@ def buscar_lancamentos():
         conn.close()
         
         return jsonify(lancamentos)
+        
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"erro": str(e)}), 500
+
+
+@relatorios_bp.route('/api/relatorio-receita-fonte')
+def api_relatorio_receita_fonte():
+    """API para buscar dados do relatório por receita ou fonte"""
+    try:
+        # Obtém parâmetros
+        tipo = request.args.get('tipo', 'receita')  # 'receita' ou 'fonte'
+        ano = request.args.get('ano', type=int)
+        mes = request.args.get('mes', type=int)
+        coug = request.args.get('coug', '')
+        filtro = request.args.get('filtro', None)
+        
+        # Valida tipo
+        if tipo not in ['receita', 'fonte']:
+            return jsonify({"erro": "Tipo inválido. Use 'receita' ou 'fonte'"}), 400
+        
+        # Conecta ao banco
+        conn = ConexaoBanco.conectar_completo()
+        
+        # Gera o relatório
+        resultado = gerar_relatorio_receita_fonte(
+            conn=conn,
+            tipo=tipo,
+            ano=ano,
+            mes=mes,
+            coug=coug if coug else None,
+            filtro_relatorio_key=filtro
+        )
+        
+        conn.close()
+        
+        return jsonify(resultado)
         
     except Exception as e:
         traceback.print_exc()
