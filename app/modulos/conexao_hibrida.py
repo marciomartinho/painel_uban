@@ -20,17 +20,54 @@ def get_postgresql_connection():
     """Conexão PostgreSQL para produção"""
     try:
         import psycopg2
+        import psycopg2.extras
+        
         database_url = os.environ.get('DATABASE_URL')
         
         if not database_url:
             raise ValueError("DATABASE_URL não encontrada nas variáveis de ambiente")
         
         conn = psycopg2.connect(database_url)
-        return conn
+        
+        # Retorna um wrapper que simula SQLite
+        return PostgreSQLWrapper(conn)
     except ImportError:
         raise ImportError("psycopg2 não está instalado")
     except Exception as e:
         raise ConnectionError(f"Erro ao conectar PostgreSQL: {e}")
+
+
+class PostgreSQLWrapper:
+    """Wrapper para fazer PostgreSQL compatível com código SQLite"""
+    
+    def __init__(self, conn):
+        self.conn = conn
+        self.cursor_factory = psycopg2.extras.RealDictCursor
+    
+    def execute(self, query, params=None):
+        """Executa query e retorna cursor compatível"""
+        cursor = self.conn.cursor(cursor_factory=self.cursor_factory)
+        if params:
+            cursor.execute(query, params)
+        else:
+            cursor.execute(query)
+        return cursor
+    
+    def cursor(self):
+        """Retorna cursor"""
+        return self.conn.cursor(cursor_factory=self.cursor_factory)
+    
+    def close(self):
+        """Fecha conexão"""
+        self.conn.close()
+    
+    def commit(self):
+        """Commit das transações"""
+        self.conn.commit()
+    
+    def rollback(self):
+        """Rollback das transações"""
+        self.conn.rollback()
 
 def get_sqlite_connection(banco_tipo='saldos'):
     """Conexão SQLite para desenvolvimento local"""
