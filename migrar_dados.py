@@ -5,7 +5,8 @@ import os
 from config import Config
 
 # URL do PostgreSQL (pública do Railway)
-POSTGRES_URL = "postgresql://postgres:uzVUcFKomVccdwGGtwrGeyOHWcrjxiIu@ballast.proxy.rlwy.net:11664/railway"
+POSTGRES_URL = "url"
+
 
 def conectar_postgres():
     """Conecta ao PostgreSQL do Railway"""

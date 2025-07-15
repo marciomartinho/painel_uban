@@ -14,6 +14,26 @@
             background: white; padding: 15px 30px; display: flex;
             justify-content: center; gap: 15px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
         }
+        .filter-actions {
+            background: white; padding: 10px 30px; display: flex;
+            justify-content: center; flex-wrap: wrap; gap: 10px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border-top: 1px solid #f0f4f8;
+        }
+        .btn-filter {
+            background: #f0f4f8; color: #5a6c7d; border: 1px solid #e2e8f0;
+            padding: 8px 18px; font-size: 13px; border-radius: 6px;
+            text-decoration: none; transition: all 0.2s;
+        }
+        .btn-filter:hover {
+            background-color: #e2e8f0;
+            border-color: #cbd5e0;
+        }
+        .btn-filter.active {
+            background-color: #2a5298;
+            color: white;
+            border-color: #1e3c72;
+            font-weight: 600;
+        }
         .periodo-info { background: white; padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #2a5298; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); border-top: 1px solid #f0f4f8; }
         .select-coug { background: #2a5298; color: white; padding: 8px 20px; border-radius: 20px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; min-width: 200px; }
         .table-container { background: white; overflow: auto; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); border-radius: 0 0 10px 10px; }
@@ -71,7 +91,7 @@
         .modal-close-btn { font-size: 28px; font-weight: bold; color: #888; cursor: pointer; line-height: 1; padding-left: 20px; }
         .modal-close-btn:hover { color: #000; }
         .modal-body { overflow-y: auto; }
-        
+
         .lancamentos-table {
             width: auto; min-width: 640px;
             border-collapse: collapse; font-size: 12px;
@@ -93,13 +113,13 @@
         .lancamentos-table col.col-valor { width: 140px; }
         .lancamentos-table td:nth-child(5) { text-align: center; }
         .lancamentos-table td:last-child, .lancamentos-table tfoot td { text-align: right; font-weight: bold; }
-        
+
         .chart-container { background: white; padding: 30px 20px; margin-top: 25px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .chart-controls { margin-bottom: 25px; text-align: center; }
         .chart-btn { padding: 10px 20px; border: 1px solid #2a5298; background-color: #fff; color: #2a5298; cursor: pointer; border-radius: 5px; font-size: 14px; margin: 0 5px; }
         .chart-btn.active { background-color: #2a5298; color: #fff; }
         .chart-wrapper { max-width: 1200px; height: 450px; margin: 0 auto; text-align: center; }
-        
+
         .resumo-container {
             background: #e9eef5;
             padding: 25px 30px;
@@ -142,7 +162,7 @@
             margin-top: 4px; white-space: nowrap;
             overflow: hidden; text-overflow: ellipsis;
         }
-        
+
         .empty-state { text-align: center; padding: 80px 20px; color: #7f8c8d; }
     </style>
 </head>
@@ -156,7 +176,23 @@
         <div class="top-actions">
              <a href="{{ url_for('relatorios.index') }}" class="btn btn-voltar">🏠 Voltar ao Início</a>
             <button class="btn btn-print" onclick="window.print()">📄 Imprimir Relatório</button>
-            <button class="btn btn-excel" onclick="exportarExcel()">📊 Exportar para Excel</button>
+            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', formato='excel', coug=coug_selecionada, filtro=filtro_ativo or '') }}" class="btn btn-excel">📊 Exportar para Excel</a>
+        </div>
+
+        <div class="filter-actions">
+            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada) }}" class="btn btn-filter {% if not filtro_ativo %}active{% endif %}">🧾 Todas as Receitas</a>
+            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='tributarias') }}" class="btn btn-filter {% if filtro_ativo == 'tributarias' %}active{% endif %}">Receitas Tributárias</a>
+            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='contribuicoes') }}" class="btn btn-filter {% if filtro_ativo == 'contribuicoes' %}active{% endif %}">Contribuições</a>
+            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='patrimonial') }}" class="btn btn-filter {% if filtro_ativo == 'patrimonial' %}active{% endif %}">Receita Patrimonial</a>
+            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='agropecuaria') }}" class="btn btn-filter {% if filtro_ativo == 'agropecuaria' %}active{% endif %}">Receita Agropecuária</a>
+            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='industrial') }}" class="btn btn-filter {% if filtro_ativo == 'industrial' %}active{% endif %}">Receita Industrial</a>
+            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='servicos') }}" class="btn btn-filter {% if filtro_ativo == 'servicos' %}active{% endif %}">Receita de Serviços</a>
+            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='transf_correntes') }}" class="btn btn-filter {% if filtro_ativo == 'transf_correntes' %}active{% endif %}">Transf. Correntes</a>
+            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='outras_correntes') }}" class="btn btn-filter {% if filtro_ativo == 'outras_correntes' %}active{% endif %}">Outras Receitas Correntes</a>
+            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='op_credito') }}" class="btn btn-filter {% if filtro_ativo == 'op_credito' %}active{% endif %}">Operações de Crédito</a>
+            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='alienacao_bens') }}" class="btn btn-filter {% if filtro_ativo == 'alienacao_bens' %}active{% endif %}">Alienação de Bens</a>
+            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='amortizacao') }}" class="btn btn-filter {% if filtro_ativo == 'amortizacao' %}active{% endif %}">Amortização de Empréstimos</a>
+            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='transf_capital') }}" class="btn btn-filter {% if filtro_ativo == 'transf_capital' %}active{% endif %}">Transf. de Capital</a>
         </div>
 
         <div class="periodo-info">
@@ -197,7 +233,7 @@
                     {% for item in dados %}
                     <tr class="{{ item.classes }}" data-level="{{ item.nivel }}">
                         <td>
-                            {% if item.nivel == 1 or item.nivel == 2 %}
+                            {% if item.classes and item.classes.find('parent-row') != -1 %}
                             <span class="toggle-btn" data-state="collapsed">[+]</span>
                             {% endif %}
                             <span class="item-description">{{ item.descricao }}</span>
@@ -302,11 +338,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        function exportarExcel() {
-            const coug = document.getElementById('seletor-coug').value;
-            window.location.href = `${window.location.pathname}?formato=excel${coug ? '&coug='+coug : ''}`;
-        }
-
         function mudarCOUG(coug) {
             const url = new URL(window.location);
             if (coug) { url.searchParams.set('coug', coug); }
@@ -327,7 +358,7 @@
             const parentRow = button.closest('tr');
             const itemDescription = parentRow.querySelector('.item-description').textContent;
             const valorRealizado2025 = parentRow.cells[3].textContent.trim();
-            
+
             const cougSelect = document.getElementById('seletor-coug');
             const cougValue = cougSelect.value;
             let cougHeaderHtml = '';
@@ -369,15 +400,15 @@
                             </colgroup>
                             <thead><tr><th>Conta Contábil</th><th>UG Emitente</th><th>Documento</th><th>Evento</th><th>D/C</th><th>Valor</th></tr></thead>
                             <tbody>`;
-                    
+
                     let total = 0;
                     data.forEach(l => {
                         const dc = l.INDEBITOCREDITO;
                         const valor = l.VALANCAMENTO;
 
-                        if (dc === 'C') { total += valor; } 
+                        if (dc === 'C') { total += valor; }
                         else if (dc === 'D') { total -= valor; }
-                        
+
                         tableHtml += `
                             <tr>
                                 <td>${l.COCONTACONTABIL || ''}</td>
@@ -462,24 +493,24 @@
                         options: {
                             responsive: true, maintainAspectRatio: false,
                             plugins: {
-                                legend: { 
-                                    position: 'right', 
-                                    align: 'center', 
-                                    labels: { 
-                                        padding: 15, 
-                                        boxWidth: 15, 
+                                legend: {
+                                    position: 'right',
+                                    align: 'center',
+                                    labels: {
+                                        padding: 15,
+                                        boxWidth: 15,
                                         font: { size: 13 },
                                         generateLabels: function(chart) {
                                             const data = chart.data;
                                             if (data.labels.length && data.datasets.length) {
                                                 return data.labels.map((label, i) => {
                                                     const value = data.datasets[0].data[i];
-                                                    const formattedValue = new Intl.NumberFormat('pt-BR', { 
+                                                    const formattedValue = new Intl.NumberFormat('pt-BR', {
                                                         style: 'decimal',
                                                         minimumFractionDigits: 2,
                                                         maximumFractionDigits: 2
                                                     }).format(value);
-                                                    
+
                                                     return {
                                                         text: `${label}                     R$ ${formattedValue}`,
                                                         fillStyle: data.datasets[0].backgroundColor[i],

@@ -1,10 +1,81 @@
 # app/modulos/regras_contabeis_receita.py
-"""Regras para classificação de contas contábeis da receita - Versão Corrigida"""
+"""Regras para classificação de contas contábeis e filtros de relatórios"""
 
 import os
 import sqlite3
 
+# ==============================================================================
+# REGRAS DINÂMICAS PARA FILTROS ESPECIAIS DE RELATÓRIO
+# ==============================================================================
+# Estrutura para definir filtros personalizados que podem ser acionados via URL.
+# Para adicionar um novo botão de filtro, basta adicionar uma nova entrada neste dicionário.
+FILTROS_RELATORIO_ESPECIAIS = {
+    'tributarias': {
+        'descricao': 'Receitas Tributárias',
+        'campo_filtro': 'COFONTERECEITA',
+        'valores': ['11', '71'] # Impostos, Taxas e Contribuições de Melhoria
+    },
+    'contribuicoes': {
+        'descricao': 'Receitas de Contribuições',
+        'campo_filtro': 'COFONTERECEITA',
+        'valores': ['12', '72']
+    },
+    'patrimonial': {
+        'descricao': 'Receita Patrimonial',
+        'campo_filtro': 'COFONTERECEITA',
+        'valores': ['13', '73']
+    },
+    'agropecuaria': {
+        'descricao': 'Receita Agropecuária',
+        'campo_filtro': 'COFONTERECEITA',
+        'valores': ['14', '74']
+    },
+    'industrial': {
+        'descricao': 'Receita Industrial',
+        'campo_filtro': 'COFONTERECEITA',
+        'valores': ['15', '75']
+    },
+    'servicos': {
+        'descricao': 'Receita de Serviços',
+        'campo_filtro': 'COFONTERECEITA',
+        'valores': ['16', '76']
+    },
+    'transf_correntes': {
+        'descricao': 'Transferências Correntes',
+        'campo_filtro': 'COFONTERECEITA',
+        'valores': ['17', '77']
+    },
+    'outras_correntes': {
+        'descricao': 'Outras Receitas Correntes',
+        'campo_filtro': 'COFONTERECEITA',
+        'valores': ['19', '79']
+    },
+    'op_credito': {
+        'descricao': 'Operações de Crédito',
+        'campo_filtro': 'COFONTERECEITA',
+        'valores': ['21']
+    },
+    'alienacao_bens': {
+        'descricao': 'Alienação de Bens',
+        'campo_filtro': 'COFONTERECEITA',
+        'valores': ['22']
+    },
+    'amortizacao': {
+        'descricao': 'Amortização de Empréstimos',
+        'campo_filtro': 'COFONTERECEITA',
+        'valores': ['23']
+    },
+    'transf_capital': {
+        'descricao': 'Transferências de Capital',
+        'campo_filtro': 'COFONTERECEITA',
+        'valores': ['24']
+    }
+}
+
+
+# ==============================================================================
 # Definição das faixas de contas contábeis
+# ==============================================================================
 REGRAS_CONTAS = {
     'PREVISAO_INICIAL': {
         'descricao': 'Previsão Inicial',
@@ -188,7 +259,7 @@ def get_query_demonstrativo_receita(nivel_detalhamento=1, filtro_periodo=""):
         COALESCE(SUM(CASE WHEN {get_filtro_conta('PREVISAO_ATUALIZADA')} THEN VALANCAMENTO ELSE 0 END), 0) as previsao_atualizada,
         COALESCE(SUM(CASE WHEN {get_filtro_conta('PREVISAO_ATUALIZADA_LIQUIDA')} THEN VALANCAMENTO ELSE 0 END), 0) as previsao_atualizada_liquida,
         COALESCE(SUM(CASE WHEN {get_filtro_conta('RECEITA_BRUTA')} THEN VALANCAMENTO ELSE 0 END), 0) as receita_bruta,
-        COALESCE(SUM(CASE WHEN {get_filtro_conta('DEDUCOES_RECEITA_BRUTA')} THEN VALANCAMENTO ELSE 0 END), 0) as deducoes_receita_bruta,
+        COALESCE(SUM(CASE WHEN {get_filtro_conta('DEDUCOES_RECEITA_BRUTA')} THEN VALANCamento ELSE 0 END), 0) as deducoes_receita_bruta,
         COALESCE(SUM(CASE WHEN {get_filtro_conta('RECEITA_LIQUIDA')} THEN VALANCAMENTO ELSE 0 END), 0) as receita_liquida
         
     FROM lancamentos l
