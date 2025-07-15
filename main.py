@@ -151,6 +151,37 @@ def create_app():
             <p>Módulos de banco não encontrados ou erro na configuração.</p>
             """
     
+    # Rota para setup do banco PostgreSQL
+    @app.route('/setup-db')
+    def setup_db():
+        """Setup inicial do banco PostgreSQL"""
+        try:
+            # Só permite em produção
+            if not (os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('DATABASE_URL')):
+                return "❌ Setup só permitido em produção (Railway)"
+            
+            from setup_inicial import criar_tabelas_basicas
+            success = criar_tabelas_basicas()
+            
+            if success:
+                return """
+                <h1>✅ Setup do Banco Concluído!</h1>
+                <p>Tabelas criadas com sucesso no PostgreSQL</p>
+                <h3>Próximos passos:</h3>
+                <ul>
+                    <li><a href="/">🏠 Ir para página principal</a></li>
+                    <li><a href="/test-db">🔧 Testar banco novamente</a></li>
+                </ul>
+                """
+            else:
+                return "❌ Falha no setup do banco"
+        except Exception as e:
+            return f"""
+            <h1>❌ Erro no Setup</h1>
+            <p><strong>Erro:</strong> {str(e)}</p>
+            <p><a href="/test-db">🔧 Voltar ao teste de banco</a></p>
+            """
+    
     # Registra blueprints (se existirem)
     try:
         from app.routes_relatorios import relatorios_bp
