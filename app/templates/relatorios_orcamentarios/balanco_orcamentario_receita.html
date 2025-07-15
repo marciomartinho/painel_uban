@@ -425,6 +425,9 @@
         {% if resumo_executivo %}
         <div class="resumo-container">
             <h2>📊 Resumo Executivo</h2>
+            {% if coug_selecionada and nome_coug %}
+            <p style="text-align: center; color: #5a6c7d; font-size: 16px; margin-top: -10px; margin-bottom: 20px;">{{ nome_coug }}</p>
+            {% endif %}
             <div class="resumo-grid">
                 <div class="resumo-card">
                     <span class="resumo-label">Receita Total {{ periodo.ano }}</span>
@@ -474,6 +477,9 @@
         {% if comparativo_mensal and comparativo_mensal.dados_html.tem_dados %}
         <div class="comparativo-mensal-container">
             <h2>📈 {{ titulo_comparativo }}</h2>
+            {% if coug_selecionada and nome_coug %}
+            <p style="text-align: center; color: #5a6c7d; font-size: 16px; margin-top: -10px; margin-bottom: 20px;">{{ nome_coug }}</p>
+            {% endif %}
             
             <!-- Cards do Comparativo -->
             <div class="comparativo-cards">
@@ -664,6 +670,8 @@
                     if (!btnCat || !btnOri) return;
                     const currentData = chartData[viewType];
                     const chartTitle = viewType === 'categorias' ? 'Distribuição da Receita por Categorias' : 'Distribuição da Receita por Origens';
+                    const cougInfo = {% if coug_selecionada and nome_coug %}`{{ nome_coug }}`{% else %}null{% endif %};
+                    const titleArray = cougInfo ? [chartTitle, cougInfo] : [chartTitle];
                     btnCat.classList.toggle('active', viewType === 'categorias');
                     btnOri.classList.toggle('active', viewType === 'origens');
                     const ctx = chartCanvas.getContext('2d');
@@ -713,7 +721,7 @@
                                         }
                                     }
                                 },
-                                title: { display: true, text: chartTitle, font: { size: 18, weight: 'bold' }, padding: { top: 0, bottom: 20 } },
+                                title: { display: true, text: titleArray, font: { size: 18, weight: 'bold' }, padding: { top: 0, bottom: 20 } },
                                 tooltip: {
                                     callbacks: {
                                         label: function(context) {

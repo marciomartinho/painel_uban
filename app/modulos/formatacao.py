@@ -74,18 +74,18 @@ def formatar_moeda(valor, prefixo="R$", usar_cor=False, html=False):
     
     return valor_final
 
-def formatar_percentual(valor, casas_decimais=1, usar_cor=False, html=False):
+def formatar_percentual(valor, casas_decimais=2, usar_cor=False, html=False):
     """
     Formata valor percentual
     
     Args:
         valor: Valor percentual (ex: 0.15 para 15%)
-        casas_decimais: Número de casas decimais
+        casas_decimais: Número de casas decimais (padrão: 2)
         usar_cor: Se True, retorna com código de cor
         html: Se True, retorna com tags HTML para cor
     """
     if valor is None:
-        return "0,0%"
+        return "0,00%"
     
     # Multiplica por 100 para percentual
     percentual = valor * 100
@@ -136,7 +136,7 @@ def formatar_numero(valor, casas_decimais=0):
         valor_formatado = f"{int(valor):,}"
     
     # Substitui para padrão brasileiro
-    return valor_formatado.replace(',', '.').replace('.', ',', 1) if '.' in valor_formatado else valor_formatado.replace(',', '.')
+    return valor_formatado.replace(',', '_').replace('.', ',').replace('_', '.')
 
 def formatar_resumo_financeiro(dados, usar_cor=True, html=False):
     """

@@ -312,6 +312,17 @@ def balanco_orcamentario_receita():
 
         filtros_contas_receita = [ get_filtro_conta('RECEITA_LIQUIDA') ]
         cougs = coug_manager.listar_cougs_com_movimento(filtros_contas_receita)
+        
+        # Obtém o nome da COUG selecionada
+        nome_coug = ""
+        if coug_selecionada:
+            nome_coug = coug_manager.get_nome_coug(coug_selecionada)
+            # Pega o texto completo da COUG da lista
+            for coug in cougs:
+                if coug['codigo'] == coug_selecionada:
+                    nome_coug = coug['descricao_completa']
+                    break
+        
         conn.close()
 
         chart_data_categorias = [ {"label": item['descricao'], "value": item['receita_atual']} for item in dados if item['nivel'] == 0 and item.get('receita_atual', 0) > 0 ]
@@ -328,6 +339,7 @@ def balanco_orcamentario_receita():
             periodo=periodo, 
             cougs=cougs, 
             coug_selecionada=coug_selecionada, 
+            nome_coug=nome_coug,
             chart_data_categorias=chart_data_categorias, 
             chart_data_origens=chart_data_origens,
             resumo_executivo=resumo,
@@ -418,4 +430,5 @@ def filter_formatar_moeda(valor):
 
 @relatorios_bp.app_template_filter('formatar_percentual')
 def filter_formatar_percentual(valor):
-    return formatar_percentual(valor/100 if valor else 0)
+    # CORREÇÃO: O valor já vem em percentual, não precisa dividir por 100
+    return formatar_percentual(valor/100 if valor else 0, casas_decimais=2)
