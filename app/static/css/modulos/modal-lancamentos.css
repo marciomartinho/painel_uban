@@ -1,0 +1,423 @@
+/* app/static/css/modulos/modal-lancamentos.css */
+/**
+ * Estilos para o módulo de modal de lançamentos
+ * Componente reutilizável em todos os relatórios
+ */
+
+/* Overlay do modal */
+.modal-lancamentos-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 10000;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(2px);
+}
+
+/* Container do conteúdo */
+.modal-lancamentos-content {
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    width: 95%;
+    max-width: 1200px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+/* Header do modal */
+.modal-lancamentos-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 2px solid #e5e5e5;
+    padding: 20px 25px;
+    background-color: #f8f9fa;
+    border-radius: 10px 10px 0 0;
+}
+
+.modal-lancamentos-header h3 {
+    color: #1e3c72;
+    font-size: 20px;
+    margin: 0;
+    line-height: 1.4;
+}
+
+.modal-lancamentos-ug {
+    font-size: 16px;
+    color: #5a6c7d;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.modal-lancamentos-comparacao {
+    margin-top: 10px;
+    display: flex;
+    gap: 30px;
+    font-size: 14px;
+    color: #5a6c7d;
+}
+
+.modal-lancamentos-comparacao strong {
+    color: #1e3c72;
+    font-weight: 600;
+}
+
+/* Botão fechar */
+.modal-lancamentos-fechar {
+    background: none;
+    border: none;
+    font-size: 32px;
+    font-weight: bold;
+    color: #888;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    margin-left: 20px;
+    transition: color 0.2s;
+}
+
+.modal-lancamentos-fechar:hover {
+    color: #dc3545;
+}
+
+/* Body do modal */
+.modal-lancamentos-body {
+    overflow-y: auto;
+    padding: 25px;
+    flex: 1;
+}
+
+/* Tabela de lançamentos */
+.modal-lancamentos-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    table-layout: fixed;
+    white-space: nowrap;
+    margin-bottom: 20px;
+}
+
+.modal-lancamentos-table th,
+.modal-lancamentos-table td {
+    padding: 10px 8px;
+    border: 1px solid #dee2e6;
+    text-align: left;
+}
+
+.modal-lancamentos-table th {
+    background-color: #2a5298;
+    color: white;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+}
+
+.modal-lancamentos-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.modal-lancamentos-table tbody tr:nth-child(even) {
+    background-color: #fafbfc;
+}
+
+.modal-lancamentos-table td {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+}
+
+.modal-lancamentos-table td.text-right {
+    text-align: right;
+    font-weight: 600;
+}
+
+.modal-lancamentos-table td.text-center {
+    text-align: center;
+}
+
+/* Tipos de lançamento D/C */
+.modal-lancamentos-table .tipo-debito {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.modal-lancamentos-table .tipo-credito {
+    color: #28a745;
+    font-weight: bold;
+}
+
+/* Linha de total */
+.modal-lancamentos-table .total-row {
+    background-color: #e9ecef;
+    font-weight: bold;
+}
+
+.modal-lancamentos-table .total-row td {
+    padding: 15px 10px;
+    font-size: 14px;
+    border-top: 2px solid #1e3c72;
+}
+
+/* Resumo dos lançamentos */
+.modal-lancamentos-resumo {
+    display: flex;
+    justify-content: space-around;
+    gap: 20px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    margin-top: 20px;
+    font-size: 14px;
+}
+
+.modal-lancamentos-resumo span {
+    color: #5a6c7d;
+}
+
+.modal-lancamentos-resumo span strong {
+    color: #1e3c72;
+    font-weight: 600;
+}
+
+/* Estados especiais */
+.modal-lancamentos-loading {
+    text-align: center;
+    padding: 80px 20px;
+    color: #5a6c7d;
+    font-size: 16px;
+}
+
+.modal-lancamentos-loading i {
+    font-size: 48px;
+    margin-bottom: 20px;
+    display: block;
+    color: #2a5298;
+}
+
+.modal-lancamentos-vazio,
+.modal-lancamentos-erro {
+    text-align: center;
+    padding: 80px 20px;
+    color: #7f8c8d;
+}
+
+.modal-lancamentos-vazio i,
+.modal-lancamentos-erro i {
+    margin-bottom: 20px;
+    opacity: 0.5;
+}
+
+.modal-lancamentos-erro {
+    color: #dc3545;
+}
+
+.modal-lancamentos-erro small {
+    display: block;
+    margin-top: 10px;
+    color: #6c757d;
+    font-size: 12px;
+}
+
+/* Informações adicionais */
+.modal-lancamentos-info-adicional {
+    background-color: #e7f3ff;
+    border-left: 4px solid #2a5298;
+    padding: 15px 20px;
+    margin-top: 20px;
+    border-radius: 5px;
+}
+
+.modal-lancamentos-info-adicional h4 {
+    color: #1e3c72;
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+.modal-lancamentos-info-adicional ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.modal-lancamentos-info-adicional li {
+    padding: 5px 0;
+    font-size: 14px;
+    color: #5a6c7d;
+}
+
+/* Animações */
+.modal-lancamentos-animacao-entrada {
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+.modal-lancamentos-animacao-saida {
+    animation: modalFadeOut 0.3s ease-out;
+}
+
+.modal-lancamentos-animacao-entrada .modal-lancamentos-content {
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+.modal-lancamentos-animacao-saida .modal-lancamentos-content {
+    animation: modalSlideOut 0.3s ease-out;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes modalFadeOut {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+
+@keyframes modalSlideIn {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes modalSlideOut {
+    from {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .modal-lancamentos-content {
+        width: 100%;
+        height: 100%;
+        max-height: 100vh;
+        border-radius: 0;
+    }
+    
+    .modal-lancamentos-header {
+        border-radius: 0;
+        padding: 15px;
+    }
+    
+    .modal-lancamentos-header h3 {
+        font-size: 16px;
+    }
+    
+    .modal-lancamentos-comparacao {
+        flex-direction: column;
+        gap: 5px;
+        font-size: 12px;
+    }
+    
+    .modal-lancamentos-body {
+        padding: 15px;
+    }
+    
+    .modal-lancamentos-table {
+        font-size: 11px;
+    }
+    
+    .modal-lancamentos-table th,
+    .modal-lancamentos-table td {
+        padding: 6px 4px;
+    }
+    
+    .modal-lancamentos-resumo {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+    }
+}
+
+/* Impressão */
+@media print {
+    .modal-lancamentos-overlay {
+        position: static;
+        background: none;
+    }
+    
+    .modal-lancamentos-content {
+        box-shadow: none;
+        max-height: none;
+    }
+    
+    .modal-lancamentos-fechar {
+        display: none;
+    }
+    
+    .modal-lancamentos-body {
+        overflow: visible;
+    }
+    
+    .modal-lancamentos-table {
+        page-break-inside: avoid;
+    }
+}
+
+/* Cores auxiliares */
+.valor-positivo {
+    color: #27ae60;
+    font-weight: 600;
+}
+
+.valor-negativo {
+    color: #e74c3c;
+    font-weight: 600;
+}
+
+/* Integração com botões de lançamentos */
+.btn-lancamentos-modal {
+    background-color: #e8ecf0;
+    color: #5a6c7d;
+    border: 1px solid #cbd5e0;
+    padding: 4px 12px;
+    font-size: 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-left: 15px;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.btn-lancamentos-modal:hover {
+    background-color: #2a5298;
+    color: white;
+    border-color: #1e3c72;
+}
+
+.btn-lancamentos-modal:focus {
+    outline: 2px solid #2a5298;
+    outline-offset: 2px;
+}
+
+.btn-lancamentos-modal i {
+    margin-right: 5px;
+}

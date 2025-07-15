@@ -20,6 +20,7 @@ from app.modulos.coug_manager import COUGManager
 from app.modulos.comparativo_mensal import gerar_comparativo_mensal
 from app.modulos.cards_unidades_gestoras import gerar_cards_unidades
 from app.modulos.relatorio_receita_fonte import gerar_relatorio_receita_fonte
+from app.modulos.modal_lancamentos import processar_requisicao_lancamentos, gerar_botao_lancamentos
 
 # Cria o Blueprint
 relatorios_bp = Blueprint('relatorios', __name__, url_prefix='/relatorios')
@@ -693,7 +694,8 @@ def balanco_orcamentario_receita():
             filtro_descricao=filtro_descricao,
             comparativo_mensal=comparativo_mensal,
             titulo_comparativo=titulo_comparativo,
-            dados_cards=dados_cards
+            dados_cards=dados_cards,
+            gerar_botao_lancamentos=gerar_botao_lancamentos  # Adiciona a função ao contexto
         )
         
     except Exception as e:
@@ -704,59 +706,32 @@ def balanco_orcamentario_receita():
         )
 
 
-@relatorios_bp.route('/balanco-orcamentario-receita/lancamentos')
-def buscar_lancamentos():
-    """API para buscar lançamentos detalhados"""
+@relatorios_bp.route('/api/lancamentos')
+def api_lancamentos():
+    """API unificada para buscar lançamentos"""
     try:
-        # Obtém parâmetros
-        ano = request.args.get('ano', type=int)
-        mes = request.args.get('mes', type=int)
-        coug = request.args.get('coug', '')
-        cat_id = request.args.get('cat_id')
-        fonte_id = request.args.get('fonte_id')
-        subfonte_id = request.args.get('subfonte_id')
-        alinea_id = request.args.get('alinea_id')
-        
-        # Monta query
-        query = f"""
-            SELECT 
-                COUG,
-                COCONTACONTABIL,
-                NUDOCUMENTO,
-                COEVENTO,
-                INDEBITOCREDITO,
-                VALANCAMENTO
-            FROM lancamentos_db.lancamentos
-            WHERE COEXERCICIO = ?
-              AND INMES <= ?
-              AND CATEGORIARECEITA = ?
-              AND COFONTERECEITA = ?
-              AND COSUBFONTERECEITA = ?
-              AND COALINEA = ?
-              AND COCONTACONTABIL BETWEEN '621200000' AND '621399999'
-              AND NUDOCUMENTO LIKE '{ano}%'
-        """
-        
-        params = [ano, mes, cat_id, fonte_id, subfonte_id, alinea_id]
-        
-        # Adiciona filtro de COUG se fornecido
-        if coug:
-            query += " AND COUGCONTAB = ?"
-            params.append(coug)
-        
-        query += " ORDER BY COEVENTO, VALANCAMENTO DESC"
-        
-        # Executa query
+        # Conecta ao banco
         conn = ConexaoBanco.conectar_completo()
-        cursor = conn.execute(query, params)
-        lancamentos = [dict(row) for row in cursor.fetchall()]
+        
+        # Processa a requisição usando o módulo
+        resultado = processar_requisicao_lancamentos(conn, request.args)
+        
         conn.close()
         
-        return jsonify(lancamentos)
+        if 'erro' in resultado:
+            return jsonify(resultado), 400
+            
+        return jsonify(resultado)
         
     except Exception as e:
         traceback.print_exc()
         return jsonify({"erro": str(e)}), 500
+
+
+@relatorios_bp.route('/balanco-orcamentario-receita/lancamentos')
+def buscar_lancamentos():
+    """Mantém compatibilidade com a rota antiga - redireciona para a nova API"""
+    return api_lancamentos()
 
 
 @relatorios_bp.route('/api/relatorio-receita-fonte')
