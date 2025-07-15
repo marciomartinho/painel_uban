@@ -163,7 +163,153 @@
             overflow: hidden; text-overflow: ellipsis;
         }
 
+        /* Estilos do Comparativo Mensal */
+        .comparativo-mensal-container {
+            background: #f8f9fa;
+            padding: 30px;
+            margin-top: 25px;
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
+        }
+
+        .comparativo-mensal-container h2 {
+            text-align: center;
+            color: #1e3c72;
+            margin-bottom: 30px;
+            font-weight: 600;
+        }
+
+        .comparativo-cards {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 40px;
+        }
+
+        .comparativo-card {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            overflow: hidden;
+            min-width: 180px;
+            max-width: 220px;
+            flex: 1 1 auto;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .comparativo-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .comparativo-card .card-header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 12px 15px;
+            text-align: center;
+        }
+
+        .mes-label {
+            font-weight: 600;
+            font-size: 14px;
+            white-space: pre-line;
+            display: block;
+        }
+
+        .comparativo-card .card-body {
+            padding: 15px;
+        }
+
+        .ano-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 5px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .ano-label {
+            font-weight: 600;
+            color: #5a6c7d;
+            font-size: 13px;
+        }
+
+        .valor {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 13px;
+        }
+
+        .variacao-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 2px solid #f0f0f0;
+        }
+
+        .variacao-label {
+            font-weight: 600;
+            color: #7f8c8d;
+            font-size: 12px;
+        }
+
+        .variacao-valor {
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .variacao-valor.positiva {
+            color: #27ae60;
+        }
+
+        .variacao-valor.negativa {
+            color: #e74c3c;
+        }
+
+        .comparativo-grafico-container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            height: 400px;
+        }
+
         .empty-state { text-align: center; padding: 80px 20px; color: #7f8c8d; }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .comparativo-cards {
+                gap: 10px;
+            }
+            
+            .comparativo-card {
+                min-width: 150px;
+                max-width: 180px;
+            }
+            
+            .mes-label {
+                font-size: 12px;
+            }
+            
+            .ano-label, .valor {
+                font-size: 12px;
+            }
+        }
+
+        @media print {
+            .comparativo-mensal-container {
+                page-break-inside: avoid;
+            }
+            
+            .comparativo-grafico-container {
+                height: 300px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -180,19 +326,19 @@
         </div>
 
         <div class="filter-actions">
-            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada) }}" class="btn btn-filter {% if not filtro_ativo %}active{% endif %}">🧾 Todas as Receitas</a>
-            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='tributarias') }}" class="btn btn-filter {% if filtro_ativo == 'tributarias' %}active{% endif %}">Receitas Tributárias</a>
-            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='contribuicoes') }}" class="btn btn-filter {% if filtro_ativo == 'contribuicoes' %}active{% endif %}">Contribuições</a>
-            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='patrimonial') }}" class="btn btn-filter {% if filtro_ativo == 'patrimonial' %}active{% endif %}">Receita Patrimonial</a>
-            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='agropecuaria') }}" class="btn btn-filter {% if filtro_ativo == 'agropecuaria' %}active{% endif %}">Receita Agropecuária</a>
-            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='industrial') }}" class="btn btn-filter {% if filtro_ativo == 'industrial' %}active{% endif %}">Receita Industrial</a>
-            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='servicos') }}" class="btn btn-filter {% if filtro_ativo == 'servicos' %}active{% endif %}">Receita de Serviços</a>
-            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='transf_correntes') }}" class="btn btn-filter {% if filtro_ativo == 'transf_correntes' %}active{% endif %}">Transf. Correntes</a>
-            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='outras_correntes') }}" class="btn btn-filter {% if filtro_ativo == 'outras_correntes' %}active{% endif %}">Outras Receitas Correntes</a>
-            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='op_credito') }}" class="btn btn-filter {% if filtro_ativo == 'op_credito' %}active{% endif %}">Operações de Crédito</a>
-            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='alienacao_bens') }}" class="btn btn-filter {% if filtro_ativo == 'alienacao_bens' %}active{% endif %}">Alienação de Bens</a>
-            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='amortizacao') }}" class="btn btn-filter {% if filtro_ativo == 'amortizacao' %}active{% endif %}">Amortização de Empréstimos</a>
-            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='transf_capital') }}" class="btn btn-filter {% if filtro_ativo == 'transf_capital' %}active{% endif %}">Transf. de Capital</a>
+            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada) }}" class="btn-filter {% if not filtro_ativo %}active{% endif %}">🧾 Todas as Receitas</a>
+            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='tributarias') }}" class="btn-filter {% if filtro_ativo == 'tributarias' %}active{% endif %}">Receitas Tributárias</a>
+            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='contribuicoes') }}" class="btn-filter {% if filtro_ativo == 'contribuicoes' %}active{% endif %}">Contribuições</a>
+            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='patrimonial') }}" class="btn-filter {% if filtro_ativo == 'patrimonial' %}active{% endif %}">Receita Patrimonial</a>
+            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='agropecuaria') }}" class="btn-filter {% if filtro_ativo == 'agropecuaria' %}active{% endif %}">Receita Agropecuária</a>
+            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='industrial') }}" class="btn-filter {% if filtro_ativo == 'industrial' %}active{% endif %}">Receita Industrial</a>
+            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='servicos') }}" class="btn-filter {% if filtro_ativo == 'servicos' %}active{% endif %}">Receita de Serviços</a>
+            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='transf_correntes') }}" class="btn-filter {% if filtro_ativo == 'transf_correntes' %}active{% endif %}">Transf. Correntes</a>
+            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='outras_correntes') }}" class="btn-filter {% if filtro_ativo == 'outras_correntes' %}active{% endif %}">Outras Receitas Correntes</a>
+            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='op_credito') }}" class="btn-filter {% if filtro_ativo == 'op_credito' %}active{% endif %}">Operações de Crédito</a>
+            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='alienacao_bens') }}" class="btn-filter {% if filtro_ativo == 'alienacao_bens' %}active{% endif %}">Alienação de Bens</a>
+            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='amortizacao') }}" class="btn-filter {% if filtro_ativo == 'amortizacao' %}active{% endif %}">Amortização de Empréstimos</a>
+            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='transf_capital') }}" class="btn-filter {% if filtro_ativo == 'transf_capital' %}active{% endif %}">Transf. de Capital</a>
         </div>
 
         <div class="periodo-info">
@@ -324,6 +470,44 @@
             </div>
         </div>
         {% endif %}
+
+        {% if comparativo_mensal and comparativo_mensal.dados_html.tem_dados %}
+        <div class="comparativo-mensal-container">
+            <h2>📈 {{ titulo_comparativo }}</h2>
+            
+            <!-- Cards do Comparativo -->
+            <div class="comparativo-cards">
+                {% for mes in comparativo_mensal.dados_html.meses %}
+                <div class="comparativo-card">
+                    <div class="card-header">
+                        <span class="mes-label">📊 {{ mes.label_ate }}</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="ano-row">
+                            <span class="ano-label">{{ mes.ano_anterior }}:</span>
+                            <span class="valor">{{ mes.receita_anterior_formatada }}</span>
+                        </div>
+                        <div class="ano-row">
+                            <span class="ano-label">{{ mes.ano_atual }}:</span>
+                            <span class="valor">{{ mes.receita_atual_formatada }}</span>
+                        </div>
+                        <div class="variacao-row">
+                            <span class="variacao-label">Variação:</span>
+                            <span class="variacao-valor {{ mes.variacao_classe }}">
+                                {{ mes.variacao_formatada|safe }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Gráfico de Evolução -->
+            <div class="comparativo-grafico-container">
+                <canvas id="comparativoMensalChart"></canvas>
+            </div>
+        </div>
+        {% endif %}
     </div>
 
     <div id="lancamentos-modal" class="modal-overlay">
@@ -436,6 +620,11 @@
         window.onclick = function(event) { if (event.target == modal) fecharModalLancamentos(); }
         window.onkeydown = function(event) { if (event.key === "Escape") fecharModalLancamentos(); }
 
+        // Dados do gráfico do comparativo mensal
+        {% if comparativo_mensal and comparativo_mensal.dados_grafico %}
+        window.comparativoMensalData = {{ comparativo_mensal.dados_grafico|tojson|safe }};
+        {% endif %}
+
         document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('.toggle-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
@@ -541,6 +730,67 @@
                     });
                 }
                 updateChart('categorias');
+            }
+
+            // Gráfico do Comparativo Mensal
+            const comparativoCanvas = document.getElementById('comparativoMensalChart');
+            if (comparativoCanvas && window.comparativoMensalData) {
+                const ctx = comparativoCanvas.getContext('2d');
+                
+                const comparativoChart = new Chart(ctx, {
+                    type: 'line',
+                    data: window.comparativoMensalData,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Evolução Acumulada da Receita',
+                                font: {
+                                    size: 16,
+                                    weight: 'bold'
+                                }
+                            },
+                            legend: {
+                                position: 'top',
+                                labels: {
+                                    padding: 20,
+                                    font: {
+                                        size: 14
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const value = context.parsed.y;
+                                        const formattedValue = new Intl.NumberFormat('pt-BR', {
+                                            style: 'currency',
+                                            currency: 'BRL'
+                                        }).format(value);
+                                        return context.dataset.label + ': ' + formattedValue;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return new Intl.NumberFormat('pt-BR', {
+                                            style: 'currency',
+                                            currency: 'BRL',
+                                            notation: 'compact',
+                                            maximumFractionDigits: 1
+                                        }).format(value);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
             }
         });
     </script>

@@ -90,7 +90,9 @@
         <div class="container text-center text-muted">
             <small>
                 Sistema de Relatórios Orçamentários - Governo do Distrito Federal<br>
+                {% if obter_periodo_referencia %}
                 Dados de referência: {{ obter_periodo_referencia().periodo_completo }}
+                {% endif %}
             </small>
         </div>
     </footer>

@@ -1,5 +1,5 @@
 # app/routes_relatorios.py
-"""Rotas para os relatórios do sistema orçamentário - Versão com Filtro Dinâmico"""
+"""Rotas para os relatórios do sistema orçamentário - Versão com Filtro Dinâmico e Comparativo Mensal"""
 
 from flask import Blueprint, render_template, request, send_file, jsonify
 import sqlite3
@@ -11,9 +11,9 @@ from io import BytesIO
 # Importa módulos do sistema
 from app.modulos.periodo import obter_periodo_referencia
 from app.modulos.formatacao import formatar_moeda, formatar_percentual
-# Importa as novas regras de filtro
 from app.modulos.regras_contabeis_receita import get_filtro_conta, FILTROS_RELATORIO_ESPECIAIS
 from app.modulos.coug_manager import COUGManager
+from app.modulos.comparativo_mensal import gerar_comparativo_mensal
 
 # Cria o Blueprint
 relatorios_bp = Blueprint('relatorios', __name__, url_prefix='/relatorios')
@@ -296,6 +296,14 @@ def balanco_orcamentario_receita():
         # Passa a chave do filtro para o método de busca
         dados = processador.buscar_dados_balanco(periodo['mes'], periodo['ano'], coug_selecionada, filtro_relatorio_key)
         
+        # Gera o comparativo mensal acumulado
+        comparativo_mensal = gerar_comparativo_mensal(
+            conn, 
+            periodo['ano'], 
+            coug_selecionada, 
+            filtro_relatorio_key
+        )
+        
         resumo = gerar_resumo_executivo(dados)
         
         if formato == 'excel':
@@ -309,6 +317,11 @@ def balanco_orcamentario_receita():
         chart_data_categorias = [ {"label": item['descricao'], "value": item['receita_atual']} for item in dados if item['nivel'] == 0 and item.get('receita_atual', 0) > 0 ]
         chart_data_origens = [ {"label": item['descricao'], "value": item['receita_atual']} for item in dados if item['nivel'] == 1 and item.get('receita_atual', 0) > 0 ]
         
+        # Determina o título do comparativo baseado no filtro
+        titulo_comparativo = "Comparativo Mensal Acumulado - Todas as Receitas"
+        if filtro_relatorio_key and filtro_relatorio_key in FILTROS_RELATORIO_ESPECIAIS:
+            titulo_comparativo = f"Comparativo Mensal Acumulado - {FILTROS_RELATORIO_ESPECIAIS[filtro_relatorio_key]['descricao']}"
+        
         return render_template(
             'relatorios_orcamentarios/balanco_orcamentario_receita.html', 
             dados=dados, 
@@ -319,8 +332,9 @@ def balanco_orcamentario_receita():
             chart_data_origens=chart_data_origens,
             resumo_executivo=resumo,
             data_geracao=datetime.now().strftime('%d/%m/%Y %H:%M'),
-            # Passa a chave do filtro ativo para o template
-            filtro_ativo=filtro_relatorio_key
+            filtro_ativo=filtro_relatorio_key,
+            comparativo_mensal=comparativo_mensal,
+            titulo_comparativo=titulo_comparativo
         )
     except Exception as e:
         import traceback
