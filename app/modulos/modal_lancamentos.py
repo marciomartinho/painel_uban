@@ -154,13 +154,6 @@ class ModalLancamentos:
         # Calcula o total
         total_liquido = self.calcular_total_liquido(lancamentos)
         
-        # Extrai eventos únicos onde o 5º dígito é 0 ou 1
-        eventos_unicos = set()
-        for lanc in lancamentos:
-            evento = lanc.get('COEVENTO', '')
-            if len(evento) >= 5 and evento[4] in ['0', '1']:
-                eventos_unicos.add(evento)
-        
         # Formata cada lançamento
         lancamentos_formatados = []
         for lanc in lancamentos:
@@ -180,7 +173,6 @@ class ModalLancamentos:
             'total_liquido': total_liquido,
             'total_liquido_formatado': formatar_moeda(total_liquido),
             'quantidade': len(lancamentos),
-            'eventos_unicos': sorted(list(eventos_unicos)),
             'valor_relatorio': valor_relatorio,
             'valor_relatorio_formatado': formatar_moeda(valor_relatorio) if valor_relatorio else None
         }
@@ -205,14 +197,6 @@ class ModalLancamentos:
             html += f'''
                 <div class="valor-apurado-info">
                     <strong>Valor Apurado no Relatório:</strong> {dados_formatados['valor_relatorio_formatado']}
-                </div>
-            '''
-        
-        # Informação sobre eventos
-        if dados_formatados.get('eventos_unicos'):
-            html += f'''
-                <div class="eventos-info">
-                    <strong>Eventos:</strong> {', '.join(dados_formatados['eventos_unicos'])}
                 </div>
             '''
         
