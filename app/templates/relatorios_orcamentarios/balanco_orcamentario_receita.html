@@ -5,224 +5,455 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Balanço Orçamentário da Receita - {{ 'Consolidado' if not coug_selecionada else nome_coug }}</title>
     
-    <!-- Estilos CSS -->
     <style>
-        /* Reset e Base */
+        /* Reset e Variáveis CSS */
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
         
+        :root {
+            /* Cores do esquema azul do relatório tributário */
+            --primary-color: #003366;
+            --primary-dark: #001a33;
+            --primary-light: #0066cc;
+            --secondary-color: #cce5ff;
+            --secondary-light: #f0f8ff;
+            --accent-color: #28a745;
+            --danger-color: #dc3545;
+            --warning-color: #f59e0b;
+            --dark: #333333;
+            --gray-dark: #555555;
+            --gray: #666666;
+            --gray-light: #999999;
+            --gray-lighter: #e8ecf0;
+            --gray-lightest: #f8f9fa;
+            --white: #ffffff;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            --radius: 0.75rem;
+            --radius-sm: 0.5rem;
+            --radius-lg: 1rem;
+        }
+        
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background-color: #f5f7fa;
-            color: #2c3e50;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--gray-lightest);
+            color: var(--dark);
             line-height: 1.6;
-        }
-        
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        /* Header */
-        .header {
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            color: white;
-            padding: 40px;
-            border-radius: 10px 10px 0 0;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            text-align: center;
-        }
-        
-        .header h1 {
-            font-size: 32px;
-            font-weight: 600;
-            margin-bottom: 10px;
-        }
-        
-        /* Barra de Ações */
-        .top-actions {
-            background: white;
-            padding: 15px 30px;
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-        }
-        
-        /* Filtros de Receita */
-        .filter-actions {
-            background: white;
-            padding: 10px 30px;
-            display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-            border-top: 1px solid #f0f4f8;
-        }
-        
-        .btn-filter {
-            background: #f0f4f8;
-            color: #5a6c7d;
-            border: 1px solid #e2e8f0;
-            padding: 8px 18px;
-            font-size: 13px;
-            border-radius: 6px;
-            text-decoration: none;
-            transition: all 0.2s;
-        }
-        
-        .btn-filter:hover {
-            background-color: #e2e8f0;
-            border-color: #cbd5e0;
-        }
-        
-        .btn-filter.active {
-            background-color: #2a5298;
-            color: white;
-            border-color: #1e3c72;
-            font-weight: 600;
-        }
-        
-        /* Info do Período */
-        .periodo-info {
-            background: white;
-            padding: 20px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-left: 4px solid #2a5298;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            border-top: 1px solid #f0f4f8;
-        }
-        
-        .select-coug {
-            background: #2a5298;
-            color: white;
-            padding: 8px 20px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 600;
-            border: none;
-            cursor: pointer;
-            transition: all 0.2s;
-            min-width: 200px;
-        }
-        
-        /* Tabela Principal */
-        .table-container {
-            background: white;
-            overflow: auto;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            border-radius: 0 0 10px 10px;
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            min-width: 1200px;
-        }
-        
-        thead {
-            background: #1e3c72;
-            color: white;
-            position: sticky;
-            top: 0;
-            z-index: 10;
-        }
-        
-        thead th {
-            padding: 18px 15px;
-            text-align: center;
-            font-weight: 600;
-            font-size: 13px;
-            text-transform: uppercase;
-        }
-        
-        tbody tr {
-            border-bottom: 1px solid #e8ecf0;
-        }
-        
-        tbody td {
-            padding: 14px 15px;
-            text-align: right;
-            font-size: 14px;
-            vertical-align: middle;
-        }
-        
-        tbody td:first-child {
-            text-align: left;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-        }
-        
-        /* Níveis da Tabela */
-        .nivel-0 {
-            background-color: #f0f4f8;
-            font-weight: 600;
-        }
-        
-        .nivel-0 td:first-child {
-            padding-left: 25px;
-            color: #1e3c72;
             font-size: 15px;
         }
         
-        .nivel-1 {
-            background-color: #fff;
+        /* Container Principal */
+        .main-container {
+            min-height: 100vh;
+            background: linear-gradient(180deg, var(--white) 0%, var(--gray-lightest) 100%);
         }
         
-        .nivel-1 td:first-child {
-            padding-left: 45px;
-            color: #5a6c7d;
-            font-size: 14px;
+        /* Header Moderno com esquema azul */
+        .modern-header {
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-color) 100%);
+            color: var(--white);
+            padding: 3rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .modern-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: pulse 20s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(0.8); opacity: 0.5; }
+            50% { transform: scale(1.2); opacity: 0.8; }
+        }
+        
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            position: relative;
+            z-index: 1;
+            text-align: center;
+        }
+        
+        .header-content h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+        }
+        
+        .header-content p {
+            font-size: 1.125rem;
+            opacity: 0.9;
+            font-weight: 400;
+        }
+        
+        /* Barra de Ações Moderna */
+        .action-bar {
+            background: var(--white);
+            border-bottom: 1px solid var(--gray-lighter);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .action-bar-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+        
+        /* Botões Modernos */
+        .btn {
+            padding: 0.625rem 1.25rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        
+        .btn-primary {
+            background: var(--primary-light);
+            color: var(--white);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-color);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .btn-secondary {
+            background: var(--white);
+            color: var(--gray-dark);
+            border: 1px solid var(--gray-lighter);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--gray-lightest);
+            border-color: var(--gray-light);
+        }
+        
+        .btn-success {
+            background: var(--accent-color);
+            color: var(--white);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .btn-success:hover {
+            background: #219a3e;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        /* Select Moderno */
+        .modern-select {
+            background: var(--white);
+            color: var(--dark);
+            padding: 0.625rem 1.25rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+            font-weight: 500;
+            border: 1px solid var(--gray-lighter);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-width: 250px;
+        }
+        
+        .modern-select:hover {
+            border-color: var(--primary-light);
+        }
+        
+        .modern-select:focus {
+            outline: none;
+            border-color: var(--primary-light);
+            box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+        }
+        
+        /* Filtros Modernos */
+        .filter-section {
+            background: var(--white);
+            border-bottom: 1px solid var(--gray-lighter);
+            overflow-x: auto;
+        }
+        
+        .filter-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1rem 2rem;
+            display: flex;
+            gap: 0.5rem;
+            min-width: max-content;
+        }
+        
+        .filter-btn {
+            background: var(--gray-lightest);
+            color: var(--gray-dark);
+            border: 1px solid transparent;
+            padding: 0.5rem 1rem;
+            font-size: 0.813rem;
+            border-radius: 9999px;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            white-space: nowrap;
             font-weight: 500;
         }
         
-        .nivel-2, .nivel-3 {
+        .filter-btn:hover {
+            background: var(--gray-lighter);
+            transform: translateY(-1px);
+        }
+        
+        .filter-btn.active {
+            background: var(--primary-light);
+            color: var(--white);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        /* Info Card */
+        .info-card {
+            background: var(--white);
+            border-left: 4px solid var(--primary-light);
+            box-shadow: var(--shadow-sm);
+            margin: 1.5rem auto;
+            max-width: 1400px;
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            border-radius: var(--radius-sm);
+        }
+        
+        .info-card-text {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .info-card-text span {
+            color: var(--gray);
+            font-size: 0.875rem;
+        }
+        
+        .info-card-text strong {
+            color: var(--dark);
+            font-weight: 600;
+        }
+        
+        /* Tabela Moderna - Estilo do Relatório Tributário */
+        .table-section {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem 2rem;
+        }
+        
+        .table-wrapper {
+            background: var(--white);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-md);
+            overflow-x: auto; /* Adicionado para rolagem horizontal em telas pequenas */
+        }
+        
+        .modern-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .modern-table thead {
+            background: var(--primary-color);
+            color: var(--white);
+        }
+        
+        .modern-table thead th {
+            padding: 1.25rem 1rem;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.813rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            white-space: nowrap;
+            border-bottom: 2px solid var(--primary-dark);
+        }
+        
+        .modern-table tbody tr {
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.2s ease;
+        }
+        
+        .modern-table tbody tr:hover {
+            background-color: rgba(240, 248, 255, 0.8) !important;
+        }
+        
+        .modern-table tbody td {
+            padding: 1rem;
+            text-align: right;
+            font-size: 0.875rem;
+            color: var(--dark);
+        }
+        
+        /* Células de valor não quebram linha */
+        .modern-table tbody td:not(:first-child) {
+            white-space: nowrap;
+        }
+        
+        .modern-table tbody td:first-child {
+            text-align: left;
+            font-weight: 500;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: normal; /* Permite quebra de linha na descrição */
+        }
+        
+        /* Níveis com cores do relatório tributário */
+        .nivel-0 {
+            background-color: var(--secondary-color);
+        }
+        
+        /* MELHORIA: Garante que todo o texto na linha nivel-0 seja legível */
+        .nivel-0 td {
+            color: var(--primary-color);
+            font-size: 0.938rem;
+            font-weight: 600;
+        }
+        
+        .nivel-0:hover {
+            background-color: #b3d9ff !important;
+        }
+        
+        .nivel-0 td:first-child {
+            padding-left: 1.5rem;
+        }
+        
+        .nivel-1 {
+            background-color: var(--white);
+        }
+        
+        .nivel-1 td:first-child {
+            padding-left: 3rem;
+            color: var(--gray-dark);
+        }
+        
+        .nivel-2 {
             display: none;
+            background-color: var(--secondary-light);
         }
         
         .nivel-2 td:first-child {
-            padding-left: 65px;
-            color: #6a7c8d;
-            font-size: 13px;
+            padding-left: 4.5rem;
+            color: var(--gray);
+            font-size: 0.813rem;
+            font-style: italic;
+        }
+        
+        .nivel-3 {
+            display: none;
+            background-color: var(--secondary-light);
         }
         
         .nivel-3 td:first-child {
-            padding-left: 85px;
-            color: #7f8c8d;
-            font-size: 12px;
-        }
-        
-        .nivel-3 td:first-child .item-description {
+            padding-left: 6rem;
+            color: var(--gray-light);
+            font-size: 0.75rem;
             font-style: italic;
         }
         
         .nivel--1 {
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            color: white;
+            background: var(--primary-color);
             font-weight: 700;
-            border-top: 3px solid #1e3c72;
         }
         
-        /* Valores */
-        .valor-positivo {
-            color: #27ae60;
-            font-weight: 600;
+        /* MELHORIA: Garante que o texto na linha de total seja branco */
+        .nivel--1 td {
+            color: var(--white);
+            font-size: 0.938rem;
+            border-bottom: none;
+        }
+
+        .modern-table tbody tr.nivel--1:hover {
+            background: var(--primary-dark) !important;
         }
         
-        .valor-negativo {
-            color: #e74c3c;
-            font-weight: 600;
+        /* Toggle Button Moderno */
+        .toggle-btn {
+            cursor: pointer;
+            width: 1.5rem;
+            height: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary-light);
+            border-radius: var(--radius-sm);
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--white);
+            transition: all 0.2s ease;
+            flex-shrink: 0;
         }
         
-        /* Variação */
+        .toggle-btn:hover {
+            background: var(--primary-color);
+            transform: scale(1.1);
+        }
+        
+        /* Valores com Cores (COM CORREÇÃO PARA O TOTAL) */
+.valor-positivo {
+    color: var(--accent-color);
+    font-weight: 600;
+}
+
+.valor-negativo {
+    color: var(--danger-color);
+    font-weight: 600;
+}
+
+/* Regra FORÇADA para garantir que todo o texto da linha de total seja branco */
+.nivel--1 td,
+.nivel--1 .valor-positivo,
+.nivel--1 .valor-negativo {
+    color: var(--white) !important;
+}
+
+        
+        
+        /* Variação Cells */
         .variacao-header {
             text-align: center;
         }
@@ -231,375 +462,370 @@
             display: flex;
             width: 100%;
             border-top: 1px solid rgba(255, 255, 255, 0.2);
-            margin-top: 5px;
-            padding-top: 5px;
+            margin-top: 0.375rem;
+            padding-top: 0.375rem;
+            gap: 1rem;
         }
         
         .variacao-subheader span {
             flex: 1;
             text-align: center;
-            font-size: 11px;
+            font-size: 0.688rem;
+            opacity: 0.9;
         }
         
         .variacao-cells {
             display: flex;
-            gap: 15px;
+            gap: 1rem;
             justify-content: flex-end;
             align-items: center;
         }
         
-        /* Botões */
-        .btn {
-            padding: 12px 24px;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: none;
+        /* Seções de Conteúdo */
+        .content-section {
+            max-width: 1400px;
+            margin: 3rem auto;
+            padding: 0 2rem;
+        }
+        
+        /* Cards Modernos */
+        .modern-card {
+            background: var(--white);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-md);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .modern-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .card-header {
             display: flex;
             align-items: center;
-            gap: 8px;
-            text-decoration: none;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--gray-lighter);
         }
         
-        .btn-voltar {
-            background: #34495e;
-            color: white;
+        .card-icon {
+            width: 3rem;
+            height: 3rem;
+            background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary-color) 100%);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: var(--white);
         }
         
-        .btn-print {
-            background: #2a5298;
-            color: white;
+        .card-title {
+            flex: 1;
         }
         
-        .btn-excel {
-            background: #27ae60;
-            color: white;
+        .card-title h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin: 0;
         }
         
-        .toggle-btn {
-            cursor: pointer;
-            font-family: monospace;
-            font-size: 16px;
-            font-weight: bold;
-            margin-right: 10px;
-            color: #2a5298;
-            width: 20px;
-            text-align: center;
-            user-select: none;
-            flex-shrink: 0;
+        .card-title p {
+            font-size: 0.875rem;
+            color: var(--gray);
+            margin-top: 0.25rem;
         }
         
         /* Gráficos */
         .chart-container {
-            background: white;
-            padding: 30px 20px;
-            margin-top: 25px;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            height: 450px;
+            position: relative;
         }
         
         .chart-controls {
-            margin-bottom: 25px;
-            text-align: center;
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-bottom: 2rem;
         }
         
         .chart-btn {
-            padding: 10px 20px;
-            border: 1px solid #2a5298;
-            background-color: #fff;
-            color: #2a5298;
+            padding: 0.5rem 1.5rem;
+            border-radius: 9999px;
+            background: var(--gray-lightest);
+            color: var(--gray-dark);
+            border: none;
             cursor: pointer;
-            border-radius: 5px;
-            font-size: 14px;
-            margin: 0 5px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .chart-btn:hover {
+            background: var(--gray-lighter);
         }
         
         .chart-btn.active {
-            background-color: #2a5298;
-            color: #fff;
+            background: var(--primary-light);
+            color: var(--white);
+            box-shadow: var(--shadow-sm);
         }
         
-        .chart-wrapper {
-            max-width: 1200px;
-            height: 450px;
-            margin: 0 auto;
-            text-align: center;
+        /* Resumo Executivo Grid */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
         }
         
-        /* Resumo Executivo */
-        .resumo-container {
-            background: #e9eef5;
-            padding: 25px 30px;
-            margin-top: 25px;
-            border-radius: 10px;
-            border: 1px solid #d1d9e6;
-        }
-        
-        .resumo-container h2 {
-            text-align: center;
-            color: #1e3c72;
-            margin-bottom: 25px;
-            font-weight: 600;
-        }
-        
-        .resumo-grid {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 20px;
-        }
-        
-        .resumo-card {
-            background-color: #f8fafc;
-            border-left: 4px solid #2a5298;
-            padding: 18px;
-            border-radius: 5px;
-            flex-grow: 1;
-            flex-basis: 220px;
-            max-width: 280px;
-        }
-        
-        .resumo-label {
-            display: block;
-            font-size: 13px;
-            color: #5a6c7d;
-            margin-bottom: 8px;
-        }
-        
-        .resumo-valor {
-            display: block;
-            font-size: 22px;
-            font-weight: 600;
-            color: #1e3c72;
-            white-space: nowrap;
-        }
-        
-        .resumo-valor.positivo {
-            color: #27ae60;
-        }
-        
-        .resumo-valor.negativo {
-            color: #e74c3c;
-        }
-        
-        .resumo-subtext {
-            font-size: 12px;
-            color: #7f8c8d;
-            margin-top: 4px;
-            white-space: nowrap;
+        .summary-card {
+            background: linear-gradient(135deg, var(--gray-lightest) 0%, var(--white) 100%);
+            padding: 1.5rem;
+            border-radius: var(--radius);
+            border: 1px solid var(--gray-lighter);
+            transition: all 0.2s ease;
+            position: relative;
             overflow: hidden;
-            text-overflow: ellipsis;
         }
         
-        /* Comparativo Mensal */
-        .comparativo-mensal-container {
-            background: #f8f9fa;
-            padding: 30px;
-            margin-top: 25px;
-            border-radius: 10px;
-            border: 1px solid #e9ecef;
+        .summary-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(180deg, var(--primary-light) 0%, var(--primary-color) 100%);
         }
         
-        .comparativo-mensal-container h2 {
-            text-align: center;
-            color: #1e3c72;
-            margin-bottom: 30px;
-            font-weight: 600;
-        }
-        
-        .comparativo-cards {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            justify-content: center;
-            margin-bottom: 40px;
-        }
-        
-        .comparativo-card {
-            background: white;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            overflow: hidden;
-            min-width: 180px;
-            max-width: 220px;
-            flex: 1 1 auto;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        
-        .comparativo-card:hover {
+        .summary-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            box-shadow: var(--shadow-md);
+            border-color: var(--primary-light);
         }
         
-        .comparativo-card .card-header {
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            color: white;
-            padding: 12px 15px;
-            text-align: center;
-        }
-        
-        .mes-label {
-            font-weight: 600;
-            font-size: 14px;
-            white-space: pre-line;
+        .summary-label {
             display: block;
+            font-size: 0.813rem;
+            color: var(--gray);
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
         
-        .comparativo-card .card-body {
-            padding: 15px;
-        }
-        
-        .ano-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-            padding: 5px 0;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        
-        .ano-label {
-            font-weight: 600;
-            color: #5a6c7d;
-            font-size: 13px;
-        }
-        
-        .valor {
-            font-weight: 600;
-            color: #2c3e50;
-            font-size: 13px;
-        }
-        
-        .variacao-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 10px;
-            padding-top: 10px;
-            border-top: 2px solid #f0f0f0;
-        }
-        
-        .variacao-label {
-            font-weight: 600;
-            color: #7f8c8d;
-            font-size: 12px;
-        }
-        
-        .variacao-valor {
+        .summary-value {
+            display: block;
+            font-size: 1.5rem;
             font-weight: 700;
-            font-size: 14px;
+            color: var(--primary-color);
+            line-height: 1.2;
         }
         
-        .variacao-valor.positiva {
-            color: #27ae60;
+        .summary-value.positive {
+            color: var(--accent-color);
         }
         
-        .variacao-valor.negativa {
-            color: #e74c3c;
+        .summary-value.negative {
+            color: var(--danger-color);
         }
         
-        .comparativo-grafico-container {
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            height: 400px;
+        .summary-subtext {
+            font-size: 0.75rem;
+            color: var(--gray-light);
+            margin-top: 0.5rem;
         }
         
+        /* Comparativo Mensal Cards */
+        .comparison-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .comparison-card {
+            background: var(--white);
+            border: 1px solid var(--gray-lighter);
+            border-radius: var(--radius);
+            overflow: hidden;
+            transition: all 0.2s ease;
+        }
+        
+        .comparison-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--primary-light);
+        }
+        
+        .comparison-card-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
+            color: var(--white);
+            padding: 1rem;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+        
+        .comparison-card-body {
+            padding: 1rem;
+        }
+        
+        .comparison-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--gray-lightest);
+        }
+        
+        .comparison-row:last-child {
+            border-bottom: none;
+            margin-top: 0.5rem;
+            padding-top: 0.75rem;
+            border-top: 2px solid var(--gray-lighter);
+        }
+        
+        /* Empty State */
         .empty-state {
             text-align: center;
-            padding: 80px 20px;
-            color: #7f8c8d;
+            padding: 4rem 2rem;
+            color: var(--gray);
+        }
+        
+        .empty-state h3 {
+            font-size: 1.25rem;
+            color: var(--gray-dark);
+            margin-bottom: 0.5rem;
+        }
+        
+        /* Loading State */
+        .loading {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            border: 2px solid var(--gray-lighter);
+            border-radius: 50%;
+            border-top-color: var(--primary-light);
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
         
         /* Responsividade */
-        @media (max-width: 768px) {
-            .comparativo-cards {
-                gap: 10px;
-            }
-            
-            .comparativo-card {
-                min-width: 150px;
-                max-width: 180px;
-            }
-            
-            .mes-label {
-                font-size: 12px;
-            }
-            
-            .ano-label, .valor {
-                font-size: 12px;
+        @media (max-width: 1200px) {
+            .header-content h1 {
+                font-size: 2rem;
             }
         }
         
-        @media print {
-            .comparativo-mensal-container {
-                page-break-inside: avoid;
+        @media (max-width: 768px) {
+            .action-bar-content {
+                flex-direction: column;
+                align-items: stretch;
             }
             
-            .comparativo-grafico-container {
-                height: 300px;
+            .action-buttons {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .modern-select {
+                width: 100%;
+            }
+            
+            .info-card {
+                padding: 1rem;
+            }
+            
+            .info-card-text {
+                flex-direction: column;
+                gap: 0.5rem;
+                align-items: flex-start;
+            }
+            
+            .modern-table {
+                font-size: 0.75rem;
+            }
+            
+            .modern-table thead th {
+                padding: 0.75rem 0.5rem;
+                font-size: 0.688rem;
+            }
+            
+            .modern-table tbody td {
+                padding: 0.75rem 0.5rem;
+            }
+            
+            .variacao-cells {
+                flex-direction: column;
+                gap: 0.25rem;
+                align-items: flex-end;
+            }
+            
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .comparison-cards {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Print Styles */
+        @media print {
+            body {
+                background: white;
+            }
+            
+            .action-bar,
+            .filter-section {
+                display: none;
+            }
+            
+            .modern-card {
+                break-inside: avoid;
+                box-shadow: none;
+                border: 1px solid var(--gray-lighter);
+            }
+            
+            .modern-table {
+                font-size: 0.75rem;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <h1>Balanço Orçamentário da Receita</h1>
-            <p>Demonstrativo comparativo entre a previsão e a realização das receitas</p>
-        </div>
-
-        <!-- Barra de Ações Superior -->
-        <div class="top-actions">
-            <a href="{{ url_for('relatorios.index') }}" class="btn btn-voltar">🏠 Voltar ao Início</a>
-            <button class="btn btn-print" onclick="window.print()">📄 Imprimir Relatório</button>
-            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', formato='excel', coug=coug_selecionada, filtro=filtro_ativo or '') }}" class="btn btn-excel">📊 Exportar para Excel</a>
-        </div>
-
-        <!-- Filtros de Tipo de Receita -->
-        <div class="filter-actions">
-            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada) }}" 
-               class="btn-filter {% if not filtro_ativo %}active{% endif %}">🧾 Todas as Receitas</a>
-            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='tributarias') }}" 
-               class="btn-filter {% if filtro_ativo == 'tributarias' %}active{% endif %}">Receitas Tributárias</a>
-            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='contribuicoes') }}" 
-               class="btn-filter {% if filtro_ativo == 'contribuicoes' %}active{% endif %}">Contribuições</a>
-            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='patrimonial') }}" 
-               class="btn-filter {% if filtro_ativo == 'patrimonial' %}active{% endif %}">Receita Patrimonial</a>
-            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='agropecuaria') }}" 
-               class="btn-filter {% if filtro_ativo == 'agropecuaria' %}active{% endif %}">Receita Agropecuária</a>
-            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='industrial') }}" 
-               class="btn-filter {% if filtro_ativo == 'industrial' %}active{% endif %}">Receita Industrial</a>
-            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='servicos') }}" 
-               class="btn-filter {% if filtro_ativo == 'servicos' %}active{% endif %}">Receita de Serviços</a>
-            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='transf_correntes') }}" 
-               class="btn-filter {% if filtro_ativo == 'transf_correntes' %}active{% endif %}">Transf. Correntes</a>
-            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='outras_correntes') }}" 
-               class="btn-filter {% if filtro_ativo == 'outras_correntes' %}active{% endif %}">Outras Receitas Correntes</a>
-            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='op_credito') }}" 
-               class="btn-filter {% if filtro_ativo == 'op_credito' %}active{% endif %}">Operações de Crédito</a>
-            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='alienacao_bens') }}" 
-               class="btn-filter {% if filtro_ativo == 'alienacao_bens' %}active{% endif %}">Alienação de Bens</a>
-            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='amortizacao') }}" 
-               class="btn-filter {% if filtro_ativo == 'amortizacao' %}active{% endif %}">Amortização de Empréstimos</a>
-            <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='transf_capital') }}" 
-               class="btn-filter {% if filtro_ativo == 'transf_capital' %}active{% endif %}">Transf. de Capital</a>
-        </div>
-
-        <!-- Informações do Período -->
-        <div class="periodo-info">
-            <div>
-                <span><strong>Período de Referência:</strong> {{ periodo.periodo_completo }}</span>
-                <span class="separator">|</span>
-                <span><strong>Data de Geração:</strong> {{ data_geracao }}</span>
+    <div class="main-container">
+        <header class="modern-header">
+            <div class="header-content">
+                <h1>Balanço Orçamentário da Receita</h1>
+                <p>Demonstrativo comparativo entre a previsão e a realização das receitas</p>
             </div>
-            <div class="info-consolidado">
-                <select id="seletor-coug" class="select-coug" onchange="mudarCOUG(this.value)">
+        </header>
+
+        <div class="action-bar">
+            <div class="action-bar-content">
+                <div class="action-buttons">
+                    <a href="{{ url_for('relatorios.index') }}" class="btn btn-secondary">
+                        <span>🏠</span> Voltar ao Início
+                    </a>
+                    <button class="btn btn-primary" onclick="window.print()">
+                        <span>📄</span> Imprimir
+                    </button>
+                    <a href="{{ url_for('relatorios.balanco_orcamentario_receita', formato='excel', coug=coug_selecionada, filtro=filtro_ativo or '') }}" class="btn btn-success">
+                        <span>📊</span> Exportar Excel
+                    </a>
+                </div>
+                <select id="seletor-coug" class="modern-select" onchange="mudarCOUG(this.value)">
                     <option value="">📊 DADOS CONSOLIDADOS</option>
                     {% for coug in cougs %}
                     <option value="{{ coug.codigo }}" {% if coug_selecionada == coug.codigo %}selected{% endif %}>
@@ -610,194 +836,234 @@
             </div>
         </div>
 
-        <!-- Tabela Principal -->
-        <div class="table-container">
-            {% if dados and dados|length > 1 %}
-            <table>
-                <thead>
-                    <tr>
-                        <th>RECEITAS</th>
-                        <th>PREVISÃO INICIAL<br>{{ periodo.ano }}</th>
-                        <th>PREVISÃO ATUALIZADA<br>{{ periodo.ano }}</th>
-                        <th>RECEITA REALIZADA<br>{{ "%02d"|format(periodo.mes) }}/{{ periodo.ano }}</th>
-                        <th>RECEITA REALIZADA<br>{{ "%02d"|format(periodo.mes) }}/{{ periodo.ano - 1 }}</th>
-                        <th>
-                            <div class="variacao-header">
-                                <span>VARIAÇÃO {{ periodo.ano }} X {{ periodo.ano - 1 }}</span>
-                                <div class="variacao-subheader">
-                                    <span>VALOR ABSOLUTO</span>
-                                    <span>%</span>
+        <div class="filter-section">
+            <div class="filter-content">
+                <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada) }}" 
+                   class="filter-btn {% if not filtro_ativo %}active{% endif %}">Todas as Receitas</a>
+                <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='tributarias') }}" 
+                   class="filter-btn {% if filtro_ativo == 'tributarias' %}active{% endif %}">Tributárias</a>
+                <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='contribuicoes') }}" 
+                   class="filter-btn {% if filtro_ativo == 'contribuicoes' %}active{% endif %}">Contribuições</a>
+                <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='patrimonial') }}" 
+                   class="filter-btn {% if filtro_ativo == 'patrimonial' %}active{% endif %}">Patrimonial</a>
+                <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='agropecuaria') }}" 
+                   class="filter-btn {% if filtro_ativo == 'agropecuaria' %}active{% endif %}">Agropecuária</a>
+                <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='industrial') }}" 
+                   class="filter-btn {% if filtro_ativo == 'industrial' %}active{% endif %}">Industrial</a>
+                <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='servicos') }}" 
+                   class="filter-btn {% if filtro_ativo == 'servicos' %}active{% endif %}">Serviços</a>
+                <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='transf_correntes') }}" 
+                   class="filter-btn {% if filtro_ativo == 'transf_correntes' %}active{% endif %}">Transf. Correntes</a>
+                <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='outras_correntes') }}" 
+                   class="filter-btn {% if filtro_ativo == 'outras_correntes' %}active{% endif %}">Outras Correntes</a>
+                <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='op_credito') }}" 
+                   class="filter-btn {% if filtro_ativo == 'op_credito' %}active{% endif %}">Op. de Crédito</a>
+                <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='alienacao_bens') }}" 
+                   class="filter-btn {% if filtro_ativo == 'alienacao_bens' %}active{% endif %}">Alienação</a>
+                <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='amortizacao') }}" 
+                   class="filter-btn {% if filtro_ativo == 'amortizacao' %}active{% endif %}">Amortização</a>
+                <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada, filtro='transf_capital') }}" 
+                   class="filter-btn {% if filtro_ativo == 'transf_capital' %}active{% endif %}">Transf. Capital</a>
+            </div>
+        </div>
+
+        <div class="info-card">
+            <div class="info-card-text">
+                <span><strong>Período:</strong> {{ periodo.periodo_completo }}</span>
+                <span><strong>Gerado em:</strong> {{ data_geracao }}</span>
+                {% if coug_selecionada and nome_coug %}
+                <span><strong>Unidade:</strong> {{ nome_coug }}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <section class="table-section">
+            <div class="table-wrapper">
+                {% if dados and dados|length > 1 %}
+                <table class="modern-table">
+                    <thead>
+                        <tr>
+                            <th>RECEITAS</th>
+                            <th>PREVISÃO INICIAL<br>{{ periodo.ano }}</th>
+                            <th>PREVISÃO ATUALIZADA<br>{{ periodo.ano }}</th>
+                            <th>REALIZADA<br>{{ "%02d"|format(periodo.mes) }}/{{ periodo.ano }}</th>
+                            <th>REALIZADA<br>{{ "%02d"|format(periodo.mes) }}/{{ periodo.ano - 1 }}</th>
+                            <th>
+                                <div class="variacao-header">
+                                    <span>VARIAÇÃO</span>
+                                    <div class="variacao-subheader">
+                                        <span>VALOR</span>
+                                        <span>%</span>
+                                    </div>
                                 </div>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in dados %}
+                        <tr class="{{ item.classes }}" data-level="{{ item.nivel }}">
+                            <td>
+                                {% if item.classes and item.classes.find('parent-row') != -1 and item.nivel > 0 %}
+                                <span class="toggle-btn" data-state="collapsed">+</span>
+                                {% endif %}
+                                <span class="item-description">{{ item.descricao }}</span>
+                                {% if item.nivel == 3 and item.tem_lancamentos and coug_selecionada %}
+                                    {{ gerar_botao_lancamentos(item.tem_lancamentos, coug_selecionada, item.params_lancamentos, item.nivel)|safe }}
+                                {% endif %}
+                            </td>
+                            <td>{{ item.previsao_inicial|formatar_moeda }}</td>
+                            <td>{{ item.previsao_atualizada|formatar_moeda }}</td>
+                            <td>{{ item.receita_atual|formatar_moeda }}</td>
+                            <td>{{ item.receita_anterior|formatar_moeda }}</td>
+                            <td>
+                                <div class="variacao-cells">
+                                    <span class="{% if item.variacao_absoluta >= 0 %}valor-positivo{% else %}valor-negativo{% endif %}">
+                                        {{ item.variacao_absoluta|formatar_moeda }}
+                                    </span>
+                                    <span class="{% if item.variacao_percentual >= 0 %}valor-positivo{% else %}valor-negativo{% endif %}">
+                                        {{ item.variacao_percentual|formatar_percentual }}
+                                    </span>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state">
+                    <h3>Nenhum dado encontrado</h3>
+                    <p>Verifique os filtros ou a disponibilidade de dados para o período.</p>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+
+        <div class="content-section">
+            
+            {% if chart_data_categorias or chart_data_origens %}
+            <div class="modern-card">
+                <div class="card-header">
+                    <div class="card-icon">📊</div>
+                    <div class="card-title">
+                        <h2>Análise Visual das Receitas</h2>
+                        <p>Distribuição por categorias e origens</p>
+                    </div>
+                </div>
+                <div class="chart-controls">
+                    <button id="btn-cat" class="chart-btn active" onclick="updateChart('categorias')">Por Categorias</button>
+                    <button id="btn-ori" class="chart-btn" onclick="updateChart('origens')">Por Origens</button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="receitaPieChart"></canvas>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if resumo_executivo %}
+            <div class="modern-card">
+                <div class="card-header">
+                    <div class="card-icon">📈</div>
+                    <div class="card-title">
+                        <h2>Resumo Executivo</h2>
+                        <p>Principais indicadores do período</p>
+                    </div>
+                </div>
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <span class="summary-label">Receita Total {{ periodo.ano }}</span>
+                        <span class="summary-value">{{ resumo_executivo.total_geral.receita_2025 | formatar_moeda }}</span>
+                    </div>
+                    <div class="summary-card">
+                        <span class="summary-label">Receita Total {{ periodo.ano - 1 }}</span>
+                        <span class="summary-value">{{ resumo_executivo.total_geral.receita_2024 | formatar_moeda }}</span>
+                    </div>
+                    <div class="summary-card">
+                        <span class="summary-label">Variação Total</span>
+                        <span class="summary-value {{ 'positive' if resumo_executivo.total_geral.variacao_pct >= 0 else 'negative' }}">
+                            {{ resumo_executivo.total_geral.variacao_pct | formatar_percentual }}
+                        </span>
+                        <div class="summary-subtext">{{ resumo_executivo.total_geral.variacao_abs | formatar_moeda }}</div>
+                    </div>
+                    {% if resumo_executivo.categoria_principal %}
+                    <div class="summary-card">
+                        <span class="summary-label">Principal Categoria</span>
+                        <span class="summary-value">{{ resumo_executivo.categoria_principal.valor | formatar_moeda }}</span>
+                        <div class="summary-subtext">{{ resumo_executivo.categoria_principal.descricao }}</div>
+                    </div>
+                    {% endif %}
+                    {% if resumo_executivo.maior_crescimento %}
+                    <div class="summary-card">
+                        <span class="summary-label">Maior Crescimento</span>
+                        <span class="summary-value positive">+ {{ resumo_executivo.maior_crescimento.valor | formatar_moeda }}</span>
+                        <div class="summary-subtext">{{ resumo_executivo.maior_crescimento.descricao }}</div>
+                    </div>
+                    {% endif %}
+                    {% if resumo_executivo.maior_queda %}
+                    <div class="summary-card">
+                        <span class="summary-label">Maior Queda</span>
+                        <span class="summary-value negative">{{ resumo_executivo.maior_queda.valor | formatar_moeda }}</span>
+                        <div class="summary-subtext">{{ resumo_executivo.maior_queda.descricao }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if comparativo_mensal and comparativo_mensal.dados_html.tem_dados %}
+            <div class="modern-card">
+                <div class="card-header">
+                    <div class="card-icon">📅</div>
+                    <div class="card-title">
+                        <h2>{{ titulo_comparativo }}</h2>
+                        <p>Evolução mensal das receitas</p>
+                    </div>
+                </div>
+                
+                <div class="comparison-cards">
+                    {% for mes in comparativo_mensal.dados_html.meses %}
+                    <div class="comparison-card">
+                        <div class="comparison-card-header">
+                            {{ mes.label_ate }}
+                        </div>
+                        <div class="comparison-card-body">
+                            <div class="comparison-row">
+                                <span>{{ mes.ano_anterior }}:</span>
+                                <strong>{{ mes.receita_anterior_formatada }}</strong>
                             </div>
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in dados %}
-                    <tr class="{{ item.classes }}" data-level="{{ item.nivel }}">
-                        <td>
-                            {% if item.classes and item.classes.find('parent-row') != -1 and item.nivel > 0 %}
-                            <span class="toggle-btn" data-state="collapsed">[+]</span>
-                            {% endif %}
-                            <span class="item-description">{{ item.descricao }}</span>
-                            {% if item.nivel == 3 and item.tem_lancamentos and coug_selecionada %}
-                                {{ gerar_botao_lancamentos(item.tem_lancamentos, coug_selecionada, item.params_lancamentos, item.nivel)|safe }}
-                            {% endif %}
-                        </td>
-                        <td>{{ item.previsao_inicial|formatar_moeda }}</td>
-                        <td>{{ item.previsao_atualizada|formatar_moeda }}</td>
-                        <td>{{ item.receita_atual|formatar_moeda }}</td>
-                        <td>{{ item.receita_anterior|formatar_moeda }}</td>
-                        <td>
-                            <div class="variacao-cells">
-                                <span class="variacao-valor {% if item.variacao_absoluta >= 0 %}valor-positivo{% else %}valor-negativo{% endif %}">
-                                    {{ item.variacao_absoluta|formatar_moeda }}
-                                </span>
-                                <span class="variacao-percentual {% if item.variacao_percentual >= 0 %}valor-positivo{% else %}valor-negativo{% endif %}">
-                                    {{ item.variacao_percentual|formatar_percentual }}
-                                </span>
+                            <div class="comparison-row">
+                                <span>{{ mes.ano_atual }}:</span>
+                                <strong>{{ mes.receita_atual_formatada }}</strong>
                             </div>
-                        </td>
-                    </tr>
+                            <div class="comparison-row">
+                                <span>Variação:</span>
+                                <strong class="{{ mes.variacao_classe }}">
+                                    {{ mes.variacao_formatada|safe }}
+                                </strong>
+                            </div>
+                        </div>
+                    </div>
                     {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <div class="empty-state">
-                <h3>Nenhum dado encontrado</h3>
-                <p>Verifique os filtros ou a disponibilidade de dados para o período.</p>
+                </div>
+                
+                <div class="chart-container">
+                    <canvas id="comparativoMensalChart"></canvas>
+                </div>
             </div>
             {% endif %}
-        </div>
 
-        <!-- Gráficos -->
-        {% if chart_data_categorias or chart_data_origens %}
-        <div class="chart-container">
-            <div class="chart-controls">
-                <button id="btn-cat" class="chart-btn active" onclick="updateChart('categorias')">Gráfico por Categorias</button>
-                <button id="btn-ori" class="chart-btn" onclick="updateChart('origens')">Gráfico por Origens</button>
-            </div>
-            <div class="chart-wrapper">
-                <canvas id="receitaPieChart"></canvas>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- Resumo Executivo -->
-        {% if resumo_executivo %}
-        <div class="resumo-container">
-            <h2>📊 Resumo Executivo</h2>
-            {% if coug_selecionada and nome_coug %}
-            <p style="text-align: center; color: #5a6c7d; font-size: 16px; margin-top: -10px; margin-bottom: 20px;">
-                {{ nome_coug }}
-            </p>
+            {% if dados_cards and not coug_selecionada %}
+                {% include 'componentes/cards_unidades_gestoras.html' %}
             {% endif %}
-            <div class="resumo-grid">
-                <div class="resumo-card">
-                    <span class="resumo-label">Receita Total {{ periodo.ano }}</span>
-                    <span class="resumo-valor">{{ resumo_executivo.total_geral.receita_2025 | formatar_moeda }}</span>
-                </div>
-                <div class="resumo-card">
-                    <span class="resumo-label">Receita Total {{ periodo.ano - 1 }}</span>
-                    <span class="resumo-valor">{{ resumo_executivo.total_geral.receita_2024 | formatar_moeda }}</span>
-                </div>
-                <div class="resumo-card">
-                    <span class="resumo-label">Variação Total ({{ periodo.ano }} x {{ periodo.ano - 1 }})</span>
-                    <span class="resumo-valor {{ 'positivo' if resumo_executivo.total_geral.variacao_pct >= 0 else 'negativo' }}">
-                        {{ resumo_executivo.total_geral.variacao_pct | formatar_percentual }}
-                    </span>
-                    <div class="resumo-subtext">{{ resumo_executivo.total_geral.variacao_abs | formatar_moeda }}</div>
-                </div>
-                {% if resumo_executivo.categoria_principal %}
-                <div class="resumo-card">
-                    <span class="resumo-label">Principal Categoria de Receita</span>
-                    <span class="resumo-valor">{{ resumo_executivo.categoria_principal.valor | formatar_moeda }}</span>
-                    <div class="resumo-subtext">{{ resumo_executivo.categoria_principal.descricao }}</div>
-                </div>
-                {% endif %}
-                {% if resumo_executivo.maior_crescimento %}
-                <div class="resumo-card">
-                    <span class="resumo-label">Maior Crescimento em Valor</span>
-                    <span class="resumo-valor positivo">+ {{ resumo_executivo.maior_crescimento.valor | formatar_moeda }}</span>
-                    <div class="resumo-subtext">{{ resumo_executivo.maior_crescimento.descricao }}</div>
-                </div>
-                {% endif %}
-                {% if resumo_executivo.maior_queda %}
-                <div class="resumo-card">
-                    <span class="resumo-label">Maior Queda em Valor</span>
-                    <span class="resumo-valor negativo">{{ resumo_executivo.maior_queda.valor | formatar_moeda }}</span>
-                    <div class="resumo-subtext">{{ resumo_executivo.maior_queda.descricao }}</div>
-                </div>
-                {% endif %}
-                <div class="resumo-card">
-                    <span class="resumo-label">Total de Detalhamentos</span>
-                    <span class="resumo-valor">{{ resumo_executivo.contagem_detalhamentos }}</span>
-                    <div class="resumo-subtext">Alíneas com Movimento</div>
-                </div>
-            </div>
+
+            {% include 'componentes/relatorio_receita_fonte.html' %}
         </div>
-        {% endif %}
-
-        <!-- Comparativo Mensal Acumulado -->
-        {% if comparativo_mensal and comparativo_mensal.dados_html.tem_dados %}
-        <div class="comparativo-mensal-container">
-            <h2>📈 {{ titulo_comparativo }}</h2>
-            {% if coug_selecionada and nome_coug %}
-            <p style="text-align: center; color: #5a6c7d; font-size: 16px; margin-top: -10px; margin-bottom: 20px;">
-                {{ nome_coug }}
-            </p>
-            {% endif %}
-            
-            <!-- Cards do Comparativo -->
-            <div class="comparativo-cards">
-                {% for mes in comparativo_mensal.dados_html.meses %}
-                <div class="comparativo-card">
-                    <div class="card-header">
-                        <span class="mes-label">📊 {{ mes.label_ate }}</span>
-                    </div>
-                    <div class="card-body">
-                        <div class="ano-row">
-                            <span class="ano-label">{{ mes.ano_anterior }}:</span>
-                            <span class="valor">{{ mes.receita_anterior_formatada }}</span>
-                        </div>
-                        <div class="ano-row">
-                            <span class="ano-label">{{ mes.ano_atual }}:</span>
-                            <span class="valor">{{ mes.receita_atual_formatada }}</span>
-                        </div>
-                        <div class="variacao-row">
-                            <span class="variacao-label">Variação:</span>
-                            <span class="variacao-valor {{ mes.variacao_classe }}">
-                                {{ mes.variacao_formatada|safe }}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-            
-            <!-- Gráfico de Evolução -->
-            <div class="comparativo-grafico-container">
-                <canvas id="comparativoMensalChart"></canvas>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- Cards de Unidades Gestoras - APENAS NO CONSOLIDADO -->
-        {% if dados_cards and not coug_selecionada %}
-            {% include 'componentes/cards_unidades_gestoras.html' %}
-        {% endif %}
-
-        <!-- Relatório por Receita/Fonte -->
-        {% include 'componentes/relatorio_receita_fonte.html' %}
     </div>
 
-    <!-- Modal de Lançamentos -->
     {% include 'componentes/modal_lancamentos.html' %}
 
-    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        // Passa o período para os scripts
+        // Configurações globais
         window.periodo = {{ periodo|tojson|safe }};
         
         // Função para mudar COUG
@@ -811,23 +1077,24 @@
             window.location.href = url.toString();
         }
 
-        // Dados do gráfico do comparativo mensal
+        // Dados dos gráficos
         {% if comparativo_mensal and comparativo_mensal.dados_grafico %}
         window.comparativoMensalData = {{ comparativo_mensal.dados_grafico|tojson|safe }};
         {% endif %}
 
-        // Inicialização após carregar o DOM
+        // Inicialização
         document.addEventListener('DOMContentLoaded', function() {
-            // Toggle de expansão das linhas
+            // Toggle de expansão
             document.querySelectorAll('.toggle-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
                     const parentRow = this.closest('tr');
                     const parentLevel = parseInt(parentRow.dataset.level, 10);
                     let nextRow = parentRow.nextElementSibling;
                     const isCollapsed = this.dataset.state === 'collapsed';
                     
                     this.dataset.state = isCollapsed ? 'expanded' : 'collapsed';
-                    this.textContent = isCollapsed ? '[-]' : '[+]';
+                    this.textContent = isCollapsed ? '−' : '+';
                     
                     while (nextRow && parseInt(nextRow.dataset.level, 10) > parentLevel) {
                         if (parseInt(nextRow.dataset.level, 10) === parentLevel + 1) {
@@ -838,7 +1105,7 @@
                             const childBtn = nextRow.querySelector('.toggle-btn');
                             if (childBtn) {
                                 childBtn.dataset.state = 'collapsed';
-                                childBtn.textContent = '[+]';
+                                childBtn.textContent = '+';
                             }
                         }
                         nextRow = nextRow.nextElementSibling;
@@ -859,11 +1126,9 @@
                 window.updateChart = function(viewType) {
                     const btnCat = document.getElementById('btn-cat');
                     const btnOri = document.getElementById('btn-ori');
-                    if (!btnCat || !btnOri) return;
                     
                     let currentData = chartData[viewType];
                     
-                    // Ordena os dados do maior para o menor valor
                     if (currentData && currentData.length > 0) {
                         currentData = [...currentData].sort((a, b) => b.value - a.value);
                     }
@@ -871,9 +1136,6 @@
                     const chartTitle = viewType === 'categorias' ? 
                         'Distribuição da Receita por Categorias' : 
                         'Distribuição da Receita por Origens';
-                    
-                    const cougInfo = {% if coug_selecionada and nome_coug %}`{{ nome_coug }}`{% else %}null{% endif %};
-                    const titleArray = cougInfo ? [chartTitle, cougInfo] : [chartTitle];
                     
                     btnCat.classList.toggle('active', viewType === 'categorias');
                     btnOri.classList.toggle('active', viewType === 'origens');
@@ -889,22 +1151,23 @@
                     
                     const labels = currentData.map(item => item.label);
                     const data = currentData.map(item => item.value);
-                    const backgroundColors = [
-                        '#36A2EB', '#FF6384', '#FFCE56', '#4BC0C0', 
-                        '#9966FF', '#FF9F40', '#1f77b4', '#ff7f0e', 
-                        '#2ca02c', '#d62728', '#9467bd', '#8c564b'
+                    const colors = [
+                        '#2563eb', '#7c3aed', '#10b981', '#f59e0b', 
+                        '#ef4444', '#8b5cf6', '#3b82f6', '#14b8a6', 
+                        '#f97316', '#06b6d4', '#ec4899', '#6366f1'
                     ];
-                    const pieColors = data.map((_, i) => backgroundColors[i % backgroundColors.length]);
                     
                     myPieChart = new Chart(ctx, {
-                        type: 'pie',
+                        type: 'doughnut',
                         data: {
                             labels: labels,
                             datasets: [{
                                 label: 'Receita Realizada',
                                 data: data,
-                                backgroundColor: pieColors,
-                                hoverOffset: 4
+                                backgroundColor: colors.slice(0, data.length),
+                                borderWidth: 2,
+                                borderColor: '#fff',
+                                hoverOffset: 8
                             }]
                         },
                         options: {
@@ -913,25 +1176,25 @@
                             plugins: {
                                 legend: {
                                     position: 'right',
-                                    align: 'center',
                                     labels: {
-                                        padding: 15,
-                                        boxWidth: 15,
-                                        font: { size: 13 },
+                                        padding: 20,
+                                        font: { size: 12 },
                                         generateLabels: function(chart) {
                                             const data = chart.data;
                                             if (data.labels.length && data.datasets.length) {
-                                                // Os dados já estão ordenados, então a legenda também ficará ordenada
                                                 return data.labels.map((label, i) => {
                                                     const value = data.datasets[0].data[i];
+                                                    const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                                    const percentage = ((value / total) * 100).toFixed(1);
                                                     const formattedValue = new Intl.NumberFormat('pt-BR', {
-                                                        style: 'decimal',
-                                                        minimumFractionDigits: 2,
-                                                        maximumFractionDigits: 2
+                                                        style: 'currency',
+                                                        currency: 'BRL',
+                                                        minimumFractionDigits: 0,
+                                                        maximumFractionDigits: 0
                                                     }).format(value);
-
+                                                    
                                                     return {
-                                                        text: `${label}                     R$ ${formattedValue}`,
+                                                        text: `${label} (${percentage}%)`,
                                                         fillStyle: data.datasets[0].backgroundColor[i],
                                                         strokeStyle: data.datasets[0].backgroundColor[i],
                                                         lineWidth: 0,
@@ -945,21 +1208,19 @@
                                 },
                                 title: {
                                     display: true,
-                                    text: titleArray,
-                                    font: { size: 18, weight: 'bold' },
-                                    padding: { top: 0, bottom: 20 }
+                                    text: chartTitle,
+                                    font: { size: 16, weight: '600' },
+                                    padding: { bottom: 30 }
                                 },
                                 tooltip: {
                                     callbacks: {
                                         label: function(context) {
-                                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
                                             const value = context.parsed;
-                                            const percentage = total > 0 ? ((value / total) * 100).toFixed(2) : 0;
                                             const formattedValue = new Intl.NumberFormat('pt-BR', {
                                                 style: 'currency',
                                                 currency: 'BRL'
                                             }).format(value);
-                                            return `${context.label}: ${formattedValue} (${percentage}%)`;
+                                            return `${context.label}: ${formattedValue}`;
                                         }
                                     }
                                 }
@@ -971,7 +1232,7 @@
                 updateChart('categorias');
             }
 
-            // Gráfico do Comparativo Mensal
+            // Gráfico Comparativo Mensal
             const comparativoCanvas = document.getElementById('comparativoMensalChart');
             if (comparativoCanvas && window.comparativoMensalData) {
                 const ctx = comparativoCanvas.getContext('2d');
@@ -982,22 +1243,18 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
                         plugins: {
-                            title: {
-                                display: true,
-                                text: 'Evolução Acumulada da Receita',
-                                font: {
-                                    size: 16,
-                                    weight: 'bold'
-                                }
-                            },
                             legend: {
                                 position: 'top',
                                 labels: {
                                     padding: 20,
-                                    font: {
-                                        size: 14
-                                    }
+                                    font: { size: 14 },
+                                    usePointStyle: true,
+                                    pointStyle: 'circle'
                                 }
                             },
                             tooltip: {
@@ -1016,6 +1273,9 @@
                         scales: {
                             y: {
                                 beginAtZero: true,
+                                grid: {
+                                    color: 'rgba(0, 0, 0, 0.05)'
+                                },
                                 ticks: {
                                     callback: function(value) {
                                         return new Intl.NumberFormat('pt-BR', {
@@ -1025,6 +1285,11 @@
                                             maximumFractionDigits: 1
                                         }).format(value);
                                     }
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
                                 }
                             }
                         }

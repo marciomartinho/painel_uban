@@ -1,57 +1,62 @@
-<!-- app/templates/componentes/relatorio_receita_fonte.html -->
-<div class="relatorio-receita-fonte-container" id="relatorio-receita-fonte">
-    <div class="relatorio-header">
-        <h3>
-            <i class="fas fa-table"></i> 
-            Relatório Detalhado
-            {% if filtro_ativo %}
-                <span class="filtro-badge">{{ filtro_descricao }}</span>
-            {% endif %}
-        </h3>
+<div class="modern-card relatorio-detalhado-section" id="relatorio-receita-fonte">
+    <div class="card-header">
+        <div class="card-icon">
+             <span style="font-size: 1.2em;">📄</span>
+        </div>
+        <div class="card-title">
+             <h2>
+                Relatório Detalhado por Fonte/Receita
+                {% if filtro_ativo %}
+                    <span class="filtro-badge">{{ filtro_descricao }}</span>
+                {% endif %}
+            </h2>
+            <p>Análise detalhada da receita por código de fonte ou natureza da receita.</p>
+        </div>
         <div class="relatorio-controls">
-            <button id="btn-por-fonte" class="btn-tipo active" onclick="mudarTipoRelatorio('fonte')">
-                <i class="fas fa-coins"></i> Relatório por Código de Fonte
+            <button id="btn-por-fonte" class="chart-btn active" onclick="RelatorioReceitaFonte.mudarTipoRelatorio('fonte')">
+                Por Fonte
             </button>
-            <button id="btn-por-receita" class="btn-tipo" onclick="mudarTipoRelatorio('receita')">
-                <i class="fas fa-receipt"></i> Relatório por Código de Receita
+            <button id="btn-por-receita" class="chart-btn" onclick="RelatorioReceitaFonte.mudarTipoRelatorio('receita')">
+                Por Receita
             </button>
         </div>
     </div>
 
-    <div class="table-responsive">
-        <table class="table table-striped table-bordered" id="tabela-receita-fonte">
+    <div class="table-wrapper">
+        <table class="modern-table" id="tabela-receita-fonte">
             <thead>
                 <tr>
                     <th class="col-descricao-rf">
                         <span id="header-tipo">Código de Fonte</span>
                     </th>
-                    <th class="col-valor-rf">Previsão Inicial {{ periodo.ano }}</th>
-                    <th class="col-valor-rf">Previsão Atualizada {{ periodo.ano }}</th>
-                    <th class="col-valor-rf">Receita Realizada {{ "%02d"|format(periodo.mes) }}/{{ periodo.ano }}</th>
-                    <th class="col-valor-rf">Receita Realizada {{ "%02d"|format(periodo.mes) }}/{{ periodo.ano - 1 }}</th>
-                    <th class="col-variacao-rf">
-                        Variação {{ periodo.ano }} x {{ periodo.ano - 1 }}
-                        <div class="variacao-subheader-rf">
-                            <span>Absoluta</span>
-                            <span>%</span>
+                    <th>Previsão Inicial<br>{{ periodo.ano }}</th>
+                    <th>Previsão Atualizada<br>{{ periodo.ano }}</th>
+                    <th>Receita Realizada<br>{{ "%02d"|format(periodo.mes) }}/{{ periodo.ano }}</th>
+                    <th>Receita Realizada<br>{{ "%02d"|format(periodo.mes) }}/{{ periodo.ano - 1 }}</th>
+                    <th>
+                        <div class="variacao-header">
+                            <span>Variação</span>
+                            <div class="variacao-subheader">
+                                <span>Valor</span>
+                                <span>%</span>
+                            </div>
                         </div>
                     </th>
                 </tr>
             </thead>
             <tbody id="tbody-relatorio">
-                <!-- Conteúdo será preenchido via JavaScript -->
-            </tbody>
+                </tbody>
             <tfoot>
-                <tr class="total-geral-rf">
+                <tr class="nivel--1">
                     <td>TOTAL GERAL</td>
                     <td id="total-previsao-inicial">R$ 0,00</td>
                     <td id="total-previsao-atualizada">R$ 0,00</td>
                     <td id="total-receita-atual">R$ 0,00</td>
                     <td id="total-receita-anterior">R$ 0,00</td>
                     <td>
-                        <div class="variacao-cells-rf">
-                            <span id="total-variacao-absoluta" class="variacao-valor-rf">R$ 0,00</span>
-                            <span id="total-variacao-percentual" class="variacao-percentual-rf">0,00%</span>
+                        <div class="variacao-cells">
+                            <span id="total-variacao-absoluta">R$ 0,00</span>
+                            <span id="total-variacao-percentual">0,00%</span>
                         </div>
                     </td>
                 </tr>
@@ -59,302 +64,117 @@
         </table>
     </div>
 
-    <div class="empty-state-relatorio" id="empty-state-relatorio" style="display: none;">
-        <i class="fas fa-inbox fa-3x"></i>
-        <p>Nenhum dado encontrado para os filtros selecionados.</p>
+    <div class="empty-state" id="empty-state-relatorio" style="display: none;">
+        <h3>Nenhum dado encontrado</h3>
+        <p>Não há dados para os filtros selecionados neste relatório.</p>
     </div>
 </div>
 
 <style>
-/* Estilos específicos para o componente Relatório Receita/Fonte */
-.relatorio-receita-fonte-container {
-    background: white;
-    padding: 30px;
-    margin-top: 30px;
-    border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-}
-
-.relatorio-receita-fonte-container .relatorio-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 25px;
+/* Estilos para o componente Relatório Receita/Fonte, alinhado com o design principal */
+.relatorio-detalhado-section .card-header {
     flex-wrap: wrap;
-    gap: 15px;
-}
-
-.relatorio-receita-fonte-container .relatorio-header h3 {
-    color: #1e3c72;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.relatorio-receita-fonte-container .filtro-badge {
-    background: #2a5298;
-    color: white;
-    padding: 4px 12px;
-    border-radius: 15px;
-    font-size: 0.75em;
-    font-weight: normal;
+    gap: 1rem;
 }
 
 .relatorio-controls {
     display: flex;
-    gap: 10px;
+    gap: 0.5rem;
+    margin-left: auto; /* Alinha os botões à direita */
 }
 
-.btn-tipo {
-    background: #f0f4f8;
-    color: #5a6c7d;
-    border: 1px solid #e2e8f0;
-    padding: 10px 20px;
-    font-size: 14px;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s;
+/* Tabela específica do relatório */
+#tabela-receita-fonte .col-descricao-rf {
+    min-width: 350px; /* Ajustado para dar mais espaço */
+}
+
+/* Célula de descrição com botão de expandir */
+#tabela-receita-fonte .td-content {
     display: flex;
     align-items: center;
-    gap: 8px;
-}
-
-.btn-tipo:hover {
-    background-color: #e2e8f0;
-    border-color: #cbd5e0;
-}
-
-.btn-tipo.active {
-    background-color: #2a5298;
-    color: white;
-    border-color: #1e3c72;
-    font-weight: 600;
-}
-
-/* Tabela do Relatório Receita/Fonte */
-#tabela-receita-fonte {
-    width: 100%;
-    min-width: 1000px;
-}
-
-#tabela-receita-fonte thead {
-    background: #1e3c72;
-    color: white;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-}
-
-#tabela-receita-fonte th {
-    padding: 15px 10px;
-    text-align: center;
-    font-weight: 600;
-    font-size: 13px;
-    text-transform: uppercase;
-    vertical-align: middle;
-}
-
-#tabela-receita-fonte th.col-descricao-rf {
-    text-align: left;
-    min-width: 350px;
-}
-
-#tabela-receita-fonte th.col-valor-rf {
-    min-width: 150px;
-}
-
-#tabela-receita-fonte th.col-variacao-rf {
-    min-width: 200px;
-}
-
-.variacao-subheader-rf {
-    display: flex;
-    width: 100%;
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
-    margin-top: 5px;
-    padding-top: 5px;
-    font-size: 11px;
-    font-weight: normal;
-}
-
-.variacao-subheader-rf span {
-    flex: 1;
-    text-align: center;
-}
-
-/* Linhas da tabela */
-#tabela-receita-fonte tbody tr {
-    border-bottom: 1px solid #e8ecf0;
-}
-
-#tabela-receita-fonte tbody tr:hover {
-    background-color: #f8fafc;
-}
-
-#tabela-receita-fonte tbody td {
-    padding: 12px 10px;
-    text-align: right;
-    font-size: 14px;
-    vertical-align: middle;
-}
-
-#tabela-receita-fonte tbody td:first-child {
-    text-align: left;
-    font-weight: 500;
-}
-
-/* Container para conteúdo da célula com botão */
-.td-content-rf {
-    display: flex;
-    align-items: center;
+    gap: 0.5rem;
     justify-content: space-between;
 }
 
-.text-content-rf {
-    flex: 1;
+#tabela-receita-fonte .text-content {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-grow: 1;
 }
 
-/* Níveis hierárquicos do relatório RF */
-#tabela-receita-fonte .nivel-rf-0 {
-    background-color: #f0f4f8;
-    font-weight: 600;
-}
-
-#tabela-receita-fonte .nivel-rf-0 td:first-child {
-    color: #1e3c72;
-    font-size: 15px;
-}
-
-#tabela-receita-fonte .nivel-rf-1 {
+/* O estilo dos níveis é herdado de .nivel-0, .nivel-1 do CSS principal */
+#tabela-receita-fonte .nivel-1 {
     display: none; /* Inicia colapsado */
 }
-
-#tabela-receita-fonte .nivel-rf-1 td:first-child {
-    padding-left: 45px;
-    color: #5a6c7d;
-    font-size: 13px;
-    font-weight: 400;
+#tabela-receita-fonte .nivel-1 td:first-child {
+    padding-left: 3rem;
 }
 
-/* Botão de expandir/colapsar RF */
-.btn-expandir-rf {
-    background: none;
-    border: 1px solid #ddd;
-    border-radius: 3px;
-    padding: 0;
-    width: 20px;
-    height: 20px;
+
+/* O botão de expandir usa o estilo do .toggle-btn do relatório principal */
+.btn-expandir {
     cursor: pointer;
-    display: inline-flex;
+    width: 1.5rem;
+    height: 1.5rem;
+    display: flex;
     align-items: center;
     justify-content: center;
-    margin-right: 8px;
-    transition: all 0.2s ease;
-}
-
-.btn-expandir-rf:hover {
-    background-color: #f0f0f0;
-    border-color: #999;
-}
-
-.btn-expandir-rf .icone {
-    font-size: 10px;
+    background: var(--secondary-color);
+    border-radius: var(--radius-sm);
+    font-size: 1rem;
     line-height: 1;
+    font-weight: 700;
+    color: var(--primary-color);
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    border: none;
+}
+.btn-expandir:hover {
+    background: var(--primary-light);
+    color: var(--white);
+    transform: scale(1.1);
 }
 
-/* Botão de lançamentos RF */
-.btn-lancamentos-rf {
+
+/* Botão de lançamentos */
+.btn-lancamentos {
     display: none; /* Inicia escondido */
-    background-color: #e8ecf0;
-    color: #5a6c7d;
-    border: 1px solid #cbd5e0;
-    padding: 4px 12px;
-    font-size: 11px;
-    border-radius: 5px;
+    background-color: var(--gray-lightest);
+    color: var(--gray-dark);
+    border: 1px solid var(--gray-lighter);
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+    border-radius: var(--radius-sm);
     cursor: pointer;
     white-space: nowrap;
-    transition: all 0.2s;
-    margin-left: 10px;
+    transition: all 0.2s ease;
+    margin-left: auto; /* Alinha à direita */
 }
-
-.btn-lancamentos-rf:hover {
-    background-color: #2a5298;
-    color: white;
-    border-color: #1e3c72;
+.btn-lancamentos:hover {
+    background-color: var(--primary-color);
+    color: var(--white);
+    border-color: var(--primary-dark);
 }
 
 /* Mostra botão quando linha está visível e tem lançamentos */
-#tabela-receita-fonte .nivel-rf-1[style*="table-row"] .btn-lancamentos-rf {
+#tabela-receita-fonte .nivel-1[style*="table-row"] .btn-lancamentos {
     display: inline-block;
-}
-
-/* Total geral RF */
-.total-geral-rf {
-    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-    color: white;
-    font-weight: 700;
-}
-
-.total-geral-rf td {
-    padding: 20px 10px;
-    font-size: 16px;
-    border-top: 3px solid #1e3c72;
-}
-
-/* Valores e variações RF */
-.variacao-cells-rf {
-    display: flex;
-    gap: 20px;
-    justify-content: flex-end;
-    align-items: center;
-}
-
-.variacao-valor-rf {
-    min-width: 120px;
-    text-align: right;
-}
-
-.variacao-percentual-rf {
-    min-width: 60px;
-    text-align: right;
-}
-
-#tabela-receita-fonte .valor-positivo-rf {
-    color: #27ae60;
-    font-weight: 600;
-}
-
-#tabela-receita-fonte .valor-negativo-rf {
-    color: #e74c3c;
-    font-weight: 600;
-}
-
-/* Empty state */
-.empty-state-relatorio {
-    text-align: center;
-    padding: 80px 20px;
-    color: #7f8c8d;
-}
-
-.empty-state-relatorio i {
-    color: #cbd5e0;
-    margin-bottom: 20px;
 }
 
 /* Responsividade */
 @media (max-width: 768px) {
-    .relatorio-receita-fonte-container .relatorio-header {
+    .relatorio-detalhado-section .card-header {
         flex-direction: column;
-        align-items: flex-start;
+        align-items: stretch;
     }
-    
     .relatorio-controls {
+        margin-left: 0;
+        margin-top: 1rem;
         flex-direction: column;
         width: 100%;
     }
-    
-    .btn-tipo {
+    .chart-btn {
         width: 100%;
         justify-content: center;
     }
@@ -362,23 +182,16 @@
 
 /* Impressão */
 @media print {
-    .relatorio-receita-fonte-container {
+    .relatorio-detalhado-section {
         page-break-inside: avoid;
     }
-    
     .relatorio-controls {
         display: none;
     }
-    
-    #tabela-receita-fonte .nivel-rf-1 {
+    #tabela-receita-fonte .nivel-1 {
         display: table-row !important;
     }
-    
-    .btn-expandir-rf {
-        display: none !important;
-    }
-    
-    .btn-lancamentos-rf {
+    .btn-expandir, .btn-lancamentos {
         display: none !important;
     }
 }
@@ -387,265 +200,171 @@
 <script>
 // Namespace para evitar conflitos
 window.RelatorioReceitaFonte = (function() {
-    // Variáveis privadas
     let tipoRelatorioAtual = 'fonte';
     let dadosRelatorioReceita = null;
     let dadosRelatorioFonte = null;
 
-    // Função para mudar tipo de relatório
     async function mudarTipoRelatorio(tipo) {
-        // Atualiza botões
-        document.querySelectorAll('.btn-tipo').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        
-        if (tipo === 'receita') {
-            document.getElementById('btn-por-receita').classList.add('active');
-            document.getElementById('header-tipo').textContent = 'Código de Receita';
-        } else {
-            document.getElementById('btn-por-fonte').classList.add('active');
-            document.getElementById('header-tipo').textContent = 'Código de Fonte';
-        }
-        
+        document.querySelectorAll('.relatorio-controls .chart-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(`btn-por-${tipo}`).classList.add('active');
+        document.getElementById('header-tipo').textContent = tipo === 'receita' ? 'Código de Receita' : 'Código de Fonte';
         tipoRelatorioAtual = tipo;
         
-        // Carrega dados se ainda não foram carregados
         if (tipo === 'receita' && !dadosRelatorioReceita) {
             await carregarDadosRelatorio('receita');
         } else if (tipo === 'fonte' && !dadosRelatorioFonte) {
             await carregarDadosRelatorio('fonte');
         } else {
-            // Usa dados já carregados
             renderizarRelatorio(tipo === 'receita' ? dadosRelatorioReceita : dadosRelatorioFonte);
         }
     }
 
-    // Função para carregar dados do relatório
     async function carregarDadosRelatorio(tipo) {
         const tbody = document.getElementById('tbody-relatorio');
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center">Carregando dados...</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 2rem;"><div class="loading"></div> Carregando...</td></tr>`;
         
         try {
-            // Monta URL com parâmetros atuais
             const urlParams = new URLSearchParams(window.location.search);
             const url = new URL(`${window.location.origin}/relatorios/api/relatorio-receita-fonte`);
-            
-            // Adiciona parâmetros
             url.searchParams.set('tipo', tipo);
             url.searchParams.set('ano', {{ periodo.ano }});
             url.searchParams.set('mes', {{ periodo.mes }});
             
-            // Adiciona COUG se selecionada
             const coug = urlParams.get('coug');
             if (coug) url.searchParams.set('coug', coug);
             
-            // Adiciona filtro de receita se ativo
             const filtro = urlParams.get('filtro');
             if (filtro) url.searchParams.set('filtro', filtro);
             
             const response = await fetch(url);
+            if (!response.ok) throw new Error(`Erro de rede: ${response.statusText}`);
             const data = await response.json();
+            if (data.erro) throw new Error(data.erro);
+
+            if (tipo === 'receita') dadosRelatorioReceita = data;
+            else dadosRelatorioFonte = data;
             
-            if (!response.ok) {
-                throw new Error(data.erro || 'Erro ao carregar dados');
-            }
-            
-            // Armazena dados em cache
-            if (tipo === 'receita') {
-                dadosRelatorioReceita = data;
-            } else {
-                dadosRelatorioFonte = data;
-            }
-            
-            // Renderiza
             renderizarRelatorio(data);
             
         } catch (error) {
             console.error('Erro ao carregar relatório:', error);
-            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Erro ao carregar dados: ${error.message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--danger-color); padding: 2rem;">Erro ao carregar dados: ${error.message}</td></tr>`;
         }
     }
 
-    // Função para renderizar o relatório
     function renderizarRelatorio(data) {
         const tbody = document.getElementById('tbody-relatorio');
         const emptyState = document.getElementById('empty-state-relatorio');
-        const table = document.querySelector('#relatorio-receita-fonte .table-responsive');
+        const tableContainer = document.querySelector('#relatorio-receita-fonte .table-wrapper');
         
         if (!data || !data.dados || data.dados.length === 0) {
-            table.style.display = 'none';
+            tableContainer.style.display = 'none';
             emptyState.style.display = 'block';
             return;
         }
         
-        table.style.display = 'block';
+        tableContainer.style.display = 'block';
         emptyState.style.display = 'none';
-        
-        // Limpa tbody
         tbody.innerHTML = '';
         
-        // Renderiza dados
         data.dados.forEach(item => {
             const tr = document.createElement('tr');
-            tr.className = `nivel-rf-${item.nivel}`;
+            tr.className = `nivel-${item.nivel}`; 
             tr.dataset.id = item.id;
-            if (item.pai_id) {
-                tr.dataset.paiId = item.pai_id;
-            }
+            if (item.pai_id) tr.dataset.paiId = item.pai_id;
             
-            // Célula de descrição
             const tdDescricao = document.createElement('td');
             const tdContentDiv = document.createElement('div');
-            tdContentDiv.className = 'td-content-rf';
+            tdContentDiv.className = 'td-content';
             
             const textContentSpan = document.createElement('span');
-            textContentSpan.className = 'text-content-rf';
+            textContentSpan.className = 'text-content';
             
             if (item.tem_filhos) {
-                // Adiciona botão de expandir/colapsar
                 const btnExpandir = document.createElement('button');
-                btnExpandir.className = 'btn-expandir-rf';
+                btnExpandir.className = 'btn-expandir';
                 btnExpandir.dataset.id = item.id;
-                btnExpandir.innerHTML = '<span class="icone">▶</span>';
-                btnExpandir.onclick = () => toggleExpansaoRF(item.id);
+                btnExpandir.innerHTML = '▶';
+                btnExpandir.onclick = () => toggleExpansao(item.id);
                 textContentSpan.appendChild(btnExpandir);
             }
             
             const spanDescricao = document.createElement('span');
-            spanDescricao.textContent = data.tipo === 'fonte' 
-                ? `${item.codigo} - ${item.descricao}` 
-                : `${item.codigo} - ${item.descricao}`;
+            spanDescricao.textContent = `${item.codigo} - ${item.descricao}`;
             textContentSpan.appendChild(spanDescricao);
-            
             tdContentDiv.appendChild(textContentSpan);
             
-            // Adiciona botão de lançamentos se aplicável (apenas para itens secundários no relatório por fonte)
             if (item.nivel === 1 && data.tipo === 'fonte' && item.tem_lancamentos && data.coug_selecionada) {
                 const btnLancamentos = document.createElement('button');
-                btnLancamentos.className = 'btn-lancamentos-rf';
+                btnLancamentos.className = 'btn-lancamentos';
                 btnLancamentos.textContent = 'Lançamentos';
-                btnLancamentos.onclick = () => abrirModalLancamentosRF(item);
+                btnLancamentos.onclick = () => abrirModalLancamentos(item, data);
                 tdContentDiv.appendChild(btnLancamentos);
             }
             
             tdDescricao.appendChild(tdContentDiv);
             tr.appendChild(tdDescricao);
             
-            // Células de valores
-            const valores = [
-                item.previsao_inicial,
-                item.previsao_atualizada,
-                item.receita_atual,
-                item.receita_anterior
-            ];
-            
+            const valores = [item.previsao_inicial, item.previsao_atualizada, item.receita_atual, item.receita_anterior];
             valores.forEach(valor => {
                 const td = document.createElement('td');
-                td.textContent = formatarMoedaRF(valor);
+                td.textContent = formatarMoeda(valor);
                 tr.appendChild(td);
             });
             
-            // Célula de variação
             const tdVariacao = document.createElement('td');
             tdVariacao.innerHTML = `
-                <div class="variacao-cells-rf">
-                    <span class="variacao-valor-rf ${item.variacao_absoluta >= 0 ? 'valor-positivo-rf' : 'valor-negativo-rf'}">
-                        ${formatarMoedaRF(item.variacao_absoluta)}
+                <div class="variacao-cells">
+                    <span class="${item.variacao_absoluta >= 0 ? 'valor-positivo' : 'valor-negativo'}">
+                        ${formatarMoeda(item.variacao_absoluta)}
                     </span>
-                    <span class="variacao-percentual-rf ${item.variacao_percentual >= 0 ? 'valor-positivo-rf' : 'valor-negativo-rf'}">
-                        ${formatarPercentualRF(item.variacao_percentual)}
+                    <span class="${item.variacao_percentual >= 0 ? 'valor-positivo' : 'valor-negativo'}">
+                        ${formatarPercentual(item.variacao_percentual)}
                     </span>
-                </div>
-            `;
+                </div>`;
             tr.appendChild(tdVariacao);
-            
             tbody.appendChild(tr);
         });
         
-        // Atualiza totais
         if (data.totais) {
-            document.getElementById('total-previsao-inicial').textContent = formatarMoedaRF(data.totais.previsao_inicial);
-            document.getElementById('total-previsao-atualizada').textContent = formatarMoedaRF(data.totais.previsao_atualizada);
-            document.getElementById('total-receita-atual').textContent = formatarMoedaRF(data.totais.receita_atual);
-            document.getElementById('total-receita-anterior').textContent = formatarMoedaRF(data.totais.receita_anterior);
+            document.getElementById('total-previsao-inicial').textContent = formatarMoeda(data.totais.previsao_inicial);
+            document.getElementById('total-previsao-atualizada').textContent = formatarMoeda(data.totais.previsao_atualizada);
+            document.getElementById('total-receita-atual').textContent = formatarMoeda(data.totais.receita_atual);
+            document.getElementById('total-receita-anterior').textContent = formatarMoeda(data.totais.receita_anterior);
             
-            const totalVariacaoAbsoluta = document.getElementById('total-variacao-absoluta');
-            totalVariacaoAbsoluta.textContent = formatarMoedaRF(data.totais.variacao_absoluta);
-            totalVariacaoAbsoluta.className = `variacao-valor-rf ${data.totais.variacao_absoluta >= 0 ? 'valor-positivo-rf' : 'valor-negativo-rf'}`;
+            const totalVarAbs = document.getElementById('total-variacao-absoluta');
+            const totalVarPct = document.getElementById('total-variacao-percentual');
+            totalVarAbs.textContent = formatarMoeda(data.totais.variacao_absoluta);
+            totalVarPct.textContent = formatarPercentual(data.totais.variacao_percentual);
             
-            const totalVariacaoPercentual = document.getElementById('total-variacao-percentual');
-            totalVariacaoPercentual.textContent = formatarPercentualRF(data.totais.variacao_percentual);
-            totalVariacaoPercentual.className = `variacao-percentual-rf ${data.totais.variacao_percentual >= 0 ? 'valor-positivo-rf' : 'valor-negativo-rf'}`;
+            const varClass = data.totais.variacao_absoluta >= 0 ? 'valor-positivo' : 'valor-negativo';
+            totalVarAbs.className = varClass;
+            totalVarPct.className = varClass;
         }
     }
 
-    // Função para expandir/colapsar
-    function toggleExpansaoRF(id) {
-        const btn = document.querySelector(`.btn-expandir-rf[data-id="${id}"]`);
-        const icone = btn.querySelector('.icone');
+    function toggleExpansao(id) {
+        const btn = document.querySelector(`.btn-expandir[data-id="${id}"]`);
         const filhos = document.querySelectorAll(`#tabela-receita-fonte tr[data-pai-id="${id}"]`);
+        const estaExpandido = btn.textContent === '▼';
         
-        const estaExpandido = icone.textContent === '▼';
-        
-        if (estaExpandido) {
-            // Colapsar
-            icone.textContent = '▶';
-            filhos.forEach(filho => {
-                filho.style.display = 'none';
-            });
-        } else {
-            // Expandir
-            icone.textContent = '▼';
-            filhos.forEach(filho => {
-                filho.style.display = 'table-row';
-            });
-        }
+        btn.textContent = estaExpandido ? '▶' : '▼';
+        filhos.forEach(filho => filho.style.display = estaExpandido ? 'none' : 'table-row');
     }
 
-    // Função para abrir modal de lançamentos
-    async function abrirModalLancamentosRF(item) {
-        // Obtém parâmetros necessários
-        const urlParams = new URLSearchParams(window.location.search);
-        const coug = urlParams.get('coug');
-        
-        if (!coug || !item.params_lancamentos) {
-            alert('Dados insuficientes para buscar lançamentos');
-            return;
-        }
-        
-        // Encontra a descrição da fonte pai
-        let descricaoFonte = '';
-        const linhaPai = document.querySelector(`tr[data-id="${item.pai_id}"]`);
-        if (linhaPai) {
-            const textContent = linhaPai.querySelector('.text-content-rf');
-            if (textContent) {
-                // Remove o botão de expandir da descrição
-                const textoCompleto = textContent.textContent.trim();
-                descricaoFonte = textoCompleto.replace(/[▶▼]\s*/, '');
-            }
-        }
-        
-        // Abre o modal
-        abrirModalLancamentosGlobalRF(item, descricaoFonte, coug);
-    }
-
-    // Função para abrir o modal global
+    // --- CORREÇÃO: Função que abre o modal ---
     async function abrirModalLancamentosGlobalRF(item, descricaoFonte, coug) {
         const modal = document.getElementById('lancamentos-modal');
         const modalTitle = document.getElementById('modal-title');
         const modalBody = document.getElementById('modal-body');
         
-        // Monta título do modal
-        let tituloHtml = '';
-        
-        // UG
-        const cougSelect = document.getElementById('seletor-coug');
-        if (cougSelect) {
-            const cougText = cougSelect.options[cougSelect.selectedIndex].text.replace('🏛️', '').trim();
-            tituloHtml += `<h3>Unidade Gestora: ${cougText}</h3>`;
+        if (!modal || !modalTitle || !modalBody) {
+            console.error('Elementos do modal não encontrados. Verifique se o modal_lancamentos.html está incluído na página.');
+            alert('Erro ao tentar abrir a janela de lançamentos.');
+            return;
         }
-        
-        // Descrição do item
+
+        let tituloHtml = `<h3>Unidade Gestora: ${coug}</h3>`;
         tituloHtml += `<div class="info-linha" style="font-weight: normal; margin-top: 10px;">`;
         tituloHtml += `<strong>Lançamentos para:</strong> ${item.codigo} - ${item.descricao}<br>`;
         if (descricaoFonte) {
@@ -654,10 +373,9 @@ window.RelatorioReceitaFonte = (function() {
         tituloHtml += `</div>`;
         
         modalTitle.innerHTML = tituloHtml;
-        modalBody.innerHTML = '<p style="padding: 25px;">Buscando lançamentos...</p>';
+        modalBody.innerHTML = '<p style="padding: 25px; text-align: center;"><div class="loading"></div> Buscando lançamentos...</p>';
         modal.style.display = 'flex';
         
-        // Monta URL
         const url = new URL(`${window.location.origin}/relatorios/api/lancamentos-receita-fonte`);
         url.searchParams.set('ano', {{ periodo.ano }});
         url.searchParams.set('mes', {{ periodo.mes }});
@@ -673,47 +391,46 @@ window.RelatorioReceitaFonte = (function() {
             if (!response.ok || data.erro) {
                 throw new Error(data.erro || 'Erro ao buscar dados');
             }
-            
             modalBody.innerHTML = data.html_tabela;
-            
         } catch (error) {
             console.error('Erro ao buscar lançamentos:', error);
-            modalBody.innerHTML = `<div class="modal-info-container"><p style="color: red;">Erro ao carregar lançamentos: ${error.message}</p></div>`;
+            modalBody.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--danger-color);">Erro ao carregar lançamentos: ${error.message}</div>`;
         }
     }
 
-    // Funções de formatação
-    function formatarMoedaRF(valor) {
-        return new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL'
-        }).format(valor || 0);
+    // --- CORREÇÃO: Função que chama o modal ---
+    function abrirModalLancamentos(item, data) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const coug = urlParams.get('coug');
+        if (!coug || !item.params_lancamentos) return alert('Dados insuficientes para buscar lançamentos');
+        
+        let descricaoFonte = '';
+        const linhaPai = document.querySelector(`tr[data-id="${item.pai_id}"] .text-content`);
+        if (linhaPai) {
+            descricaoFonte = linhaPai.textContent.trim().replace(/[▶▼]\s*/, '');
+        }
+        
+        // Agora esta chamada funciona, pois a função foi reinserida no escopo.
+        abrirModalLancamentosGlobalRF(item, descricaoFonte, coug);
     }
 
-    function formatarPercentualRF(valor) {
-        const sinal = valor > 0 ? '+' : '';
-        return `${sinal}${valor.toFixed(2).replace('.', ',')}%`;
+    function formatarMoeda(valor) {
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
     }
 
-    // API pública
+    function formatarPercentual(valor) {
+        return `${valor > 0 ? '+' : ''}${valor.toFixed(2).replace('.', ',')}%`;
+    }
+
     return {
-        mudarTipoRelatorio: mudarTipoRelatorio,
+        mudarTipoRelatorio,
         init: function() {
-            // Aguarda um pouco para garantir que outros elementos carregaram
-            setTimeout(() => {
-                // Carrega relatório padrão (por fonte)
-                mudarTipoRelatorio('fonte');
-            }, 500);
+            setTimeout(() => mudarTipoRelatorio('fonte'), 300);
         }
     };
 })();
 
-// Expor a função mudarTipoRelatorio globalmente para os botões
-window.mudarTipoRelatorio = window.RelatorioReceitaFonte.mudarTipoRelatorio;
-
-// Inicialização quando o DOM estiver pronto
 document.addEventListener('DOMContentLoaded', function() {
-    // Verifica se o elemento existe antes de inicializar
     if (document.getElementById('relatorio-receita-fonte')) {
         window.RelatorioReceitaFonte.init();
     }
