@@ -9,11 +9,11 @@
             {% endif %}
         </h3>
         <div class="relatorio-controls">
-            <button id="btn-por-receita" class="btn-tipo active" onclick="mudarTipoRelatorio('receita')">
-                <i class="fas fa-receipt"></i> Relatório por Código de Receita
-            </button>
-            <button id="btn-por-fonte" class="btn-tipo" onclick="mudarTipoRelatorio('fonte')">
+            <button id="btn-por-fonte" class="btn-tipo active" onclick="mudarTipoRelatorio('fonte')">
                 <i class="fas fa-coins"></i> Relatório por Código de Fonte
+            </button>
+            <button id="btn-por-receita" class="btn-tipo" onclick="mudarTipoRelatorio('receita')">
+                <i class="fas fa-receipt"></i> Relatório por Código de Receita
             </button>
         </div>
     </div>
@@ -23,7 +23,7 @@
             <thead>
                 <tr>
                     <th class="col-descricao-rf">
-                        <span id="header-tipo">Código de Receita</span>
+                        <span id="header-tipo">Código de Fonte</span>
                     </th>
                     <th class="col-valor-rf">Previsão Inicial {{ periodo.ano }}</th>
                     <th class="col-valor-rf">Previsão Atualizada {{ periodo.ano }}</th>
@@ -73,22 +73,6 @@
     margin-top: 30px;
     border-radius: 10px;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-}
-
-/* Valor apurado no relatório */
-.valor-apurado-info {
-    background-color: #e7f3ff;
-    padding: 12px 15px;
-    margin-bottom: 15px;
-    border-left: 4px solid #2a5298;
-    border-radius: 4px;
-    font-size: 14px;
-    color: #1e3c72;
-}
-
-.valor-apurado-info strong {
-    color: #1e3c72;
-    font-weight: 600;
 }
 
 .relatorio-receita-fonte-container .relatorio-header {
@@ -404,7 +388,7 @@
 // Namespace para evitar conflitos
 window.RelatorioReceitaFonte = (function() {
     // Variáveis privadas
-    let tipoRelatorioAtual = 'receita';
+    let tipoRelatorioAtual = 'fonte';
     let dadosRelatorioReceita = null;
     let dadosRelatorioFonte = null;
 
@@ -528,7 +512,9 @@ window.RelatorioReceitaFonte = (function() {
             }
             
             const spanDescricao = document.createElement('span');
-            spanDescricao.textContent = `${item.codigo} - ${item.descricao}`;
+            spanDescricao.textContent = data.tipo === 'fonte' 
+                ? `${item.codigo} - ${item.descricao}` 
+                : `${item.codigo} - ${item.descricao}`;
             textContentSpan.appendChild(spanDescricao);
             
             tdContentDiv.appendChild(textContentSpan);
@@ -617,54 +603,68 @@ window.RelatorioReceitaFonte = (function() {
     }
 
     // Função para abrir modal de lançamentos
-async function abrirModalLancamentosRF(item) {
-    // Obtém parâmetros necessários
-    const urlParams = new URLSearchParams(window.location.search);
-    const coug = urlParams.get('coug');
-    
-    if (!coug || !item.params_lancamentos) {
-        alert('Dados insuficientes para buscar lançamentos');
-        return;
+    async function abrirModalLancamentosRF(item) {
+        // Obtém parâmetros necessários
+        const urlParams = new URLSearchParams(window.location.search);
+        const coug = urlParams.get('coug');
+        
+        if (!coug || !item.params_lancamentos) {
+            alert('Dados insuficientes para buscar lançamentos');
+            return;
+        }
+        
+        // Encontra a descrição da fonte pai
+        let descricaoFonte = '';
+        const linhaPai = document.querySelector(`tr[data-id="${item.pai_id}"]`);
+        if (linhaPai) {
+            const textContent = linhaPai.querySelector('.text-content-rf');
+            if (textContent) {
+                // Remove o botão de expandir da descrição
+                const textoCompleto = textContent.textContent.trim();
+                descricaoFonte = textoCompleto.replace(/[▶▼]\s*/, '');
+            }
+        }
+        
+        // Abre o modal
+        abrirModalLancamentosGlobalRF(item, descricaoFonte, coug);
     }
-    
-    // Monta parâmetros para a API
-    const params = {
-        ano: {{ periodo.ano }},
-        mes: {{ periodo.mes }},
-        coug: coug,
-        coalinea: item.params_lancamentos.coalinea,
-        cofonte: item.params_lancamentos.cofonte,
-        valor_relatorio: item.receita_atual  // Adiciona o valor do relatório
-    };
-    
-    // Abre o modal
-    abrirModalLancamentosGlobalRF(params, item.descricao);
-}
 
     // Função para abrir o modal global
-    async function abrirModalLancamentosGlobalRF(params, descricaoItem) {
+    async function abrirModalLancamentosGlobalRF(item, descricaoFonte, coug) {
         const modal = document.getElementById('lancamentos-modal');
         const modalTitle = document.getElementById('modal-title');
         const modalBody = document.getElementById('modal-body');
         
-        // Monta título
-        const cougSelect = document.getElementById('seletor-coug');
+        // Monta título do modal
         let tituloHtml = '';
         
+        // UG
+        const cougSelect = document.getElementById('seletor-coug');
         if (cougSelect) {
             const cougText = cougSelect.options[cougSelect.selectedIndex].text.replace('🏛️', '').trim();
-            tituloHtml += `<h3 style="color: #555; font-size: 16px; margin-bottom: 10px;">Unidade Gestora: ${cougText}</h3>`;
+            tituloHtml += `<h3>Unidade Gestora: ${cougText}</h3>`;
         }
         
-        tituloHtml += `<h3>Lançamentos para: ${descricaoItem}</h3>`;
+        // Descrição do item
+        tituloHtml += `<div class="info-linha" style="font-weight: normal; margin-top: 10px;">`;
+        tituloHtml += `<strong>Lançamentos para:</strong> ${item.codigo} - ${item.descricao}<br>`;
+        if (descricaoFonte) {
+            tituloHtml += `<strong>Fonte:</strong> ${descricaoFonte}`;
+        }
+        tituloHtml += `</div>`;
         
         modalTitle.innerHTML = tituloHtml;
-        modalBody.innerHTML = '<p>Buscando lançamentos...</p>';
+        modalBody.innerHTML = '<p style="padding: 25px;">Buscando lançamentos...</p>';
         modal.style.display = 'flex';
         
-        // Monta URL da API
+        // Monta URL
         const url = new URL(`${window.location.origin}/relatorios/api/lancamentos-receita-fonte`);
-        Object.keys(params).forEach(key => url.searchParams.set(key, params[key]));
+        url.searchParams.set('ano', {{ periodo.ano }});
+        url.searchParams.set('mes', {{ periodo.mes }});
+        url.searchParams.set('coug', coug);
+        url.searchParams.set('coalinea', item.params_lancamentos.coalinea);
+        url.searchParams.set('cofonte', item.params_lancamentos.cofonte);
+        url.searchParams.set('valor_relatorio', item.receita_atual);
         
         try {
             const response = await fetch(url);
@@ -678,7 +678,7 @@ async function abrirModalLancamentosRF(item) {
             
         } catch (error) {
             console.error('Erro ao buscar lançamentos:', error);
-            modalBody.innerHTML = `<p style="color: red;">Erro ao carregar lançamentos: ${error.message}</p>`;
+            modalBody.innerHTML = `<div class="modal-info-container"><p style="color: red;">Erro ao carregar lançamentos: ${error.message}</p></div>`;
         }
     }
 
@@ -701,8 +701,8 @@ async function abrirModalLancamentosRF(item) {
         init: function() {
             // Aguarda um pouco para garantir que outros elementos carregaram
             setTimeout(() => {
-                // Carrega relatório padrão (por receita)
-                mudarTipoRelatorio('receita');
+                // Carrega relatório padrão (por fonte)
+                mudarTipoRelatorio('fonte');
             }, 500);
         }
     };

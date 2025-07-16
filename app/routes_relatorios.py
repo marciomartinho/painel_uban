@@ -850,65 +850,62 @@ def api_lancamentos_receita_fonte():
         # Formata dados
         from app.modulos.formatacao import formatar_moeda
         
-        resultado = {
-            'tem_dados': len(lancamentos) > 0,
-            'quantidade': len(lancamentos),
-            'lancamentos': lancamentos,
-            'totais': {
-                'total_debito': total_debito,
-                'total_credito': total_credito,
-                'total_liquido': total_liquido
-            },
-            'valor_relatorio': valor_relatorio  # Adiciona o valor do relatório
-        }
-        
-        # Gera HTML da tabela
+        # Gera HTML da tabela - CORRIGIDO SEM DUPLICAÇÃO
         if lancamentos:
             html = f"""
-            <div class="valor-apurado-info">
-                <strong>Valor Apurado no Relatório:</strong> {formatar_moeda(valor_relatorio)}
+            <div class="modal-info-container">
+                <div class="valor-apurado-info">
+                    <strong>Valor Apurado no Relatório:</strong> {formatar_moeda(valor_relatorio)}
+                </div>
             </div>
-            <table class="lancamentos-table">
-                <colgroup>
-                    <col class="col-conta"><col class="col-ug"><col class="col-doc">
-                    <col class="col-evento"><col class="col-dc"><col class="col-valor">
-                </colgroup>
-                <thead>
-                    <tr>
-                        <th>CONTA CONTÁBIL</th><th>UG EMITENTE</th><th>DOCUMENTO</th>
-                        <th>EVENTO</th><th>D/C</th><th>VALOR</th>
-                    </tr>
-                </thead>
-                <tbody>
+            <div class="table-container">
+                <table class="lancamentos-table">
+                    <colgroup>
+                        <col class="col-conta"><col class="col-ug"><col class="col-doc">
+                        <col class="col-evento"><col class="col-dc"><col class="col-valor">
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th>Conta Contábil</th><th>UG Emitente</th><th>Documento</th>
+                            <th>Evento</th><th>D/C</th><th>Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody>
             """
             
             for lanc in lancamentos:
-                dc_class = 'tipo-debito' if lanc['dc'] == 'D' else 'tipo-credito'
                 html += f"""
                     <tr>
                         <td>{lanc['conta_contabil']}</td>
                         <td>{lanc['coug']}</td>
                         <td>{lanc['documento']}</td>
                         <td>{lanc['evento']}</td>
-                        <td class="{dc_class}">{lanc['dc']}</td>
-                        <td class="text-right">{formatar_moeda(lanc['valor'])}</td>
+                        <td>{lanc['dc']}</td>
+                        <td>{formatar_moeda(lanc['valor'])}</td>
                     </tr>
                 """
             
             html += f"""
-                </tbody>
-                <tfoot>
-                    <tr class="total-row">
-                        <td colspan="5">Total Líquido dos Lançamentos:</td>
-                        <td class="text-right">{formatar_moeda(total_liquido)}</td>
-                    </tr>
-                </tfoot>
-            </table>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="5">Total Líquido dos Lançamentos:</td>
+                            <td>{formatar_moeda(total_liquido)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
             """
             
-            resultado['html_tabela'] = html
+            resultado = {
+                'tem_dados': True,
+                'html_tabela': html
+            }
         else:
-            resultado['html_tabela'] = '<p>Nenhum lançamento encontrado para este item.</p>'
+            resultado = {
+                'tem_dados': False,
+                'html_tabela': '<div class="modal-info-container"><p>Nenhum lançamento encontrado para este item.</p></div>'
+            }
         
         conn.close()
         return jsonify(resultado)

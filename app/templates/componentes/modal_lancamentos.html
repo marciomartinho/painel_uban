@@ -1,5 +1,3 @@
-<!-- app/templates/componentes/modal_lancamentos.html -->
-<!-- Modal reutilizável de lançamentos -->
 <div id="lancamentos-modal" class="modal-overlay">
     <div class="modal-content">
         <div class="modal-header">
@@ -27,7 +25,7 @@
 
 .modal-content {
     background-color: white;
-    padding: 25px;
+    padding: 0;
     border-radius: 8px;
     box-shadow: 0 5px 15px rgba(0,0,0,0.3);
     width: auto;
@@ -35,6 +33,7 @@
     max-height: 90vh;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 
 .modal-header {
@@ -42,14 +41,29 @@
     justify-content: space-between;
     align-items: flex-start;
     border-bottom: 1px solid #e5e5e5;
-    padding-bottom: 15px;
-    margin-bottom: 15px;
+    padding: 20px 25px;
+    background-color: #f8f9fa;
+}
+
+#modal-title {
+    flex: 1;
 }
 
 .modal-header h3 {
     color: #1e3c72;
-    font-size: 18px;
+    font-size: 16px;
     line-height: 1.4;
+    margin: 0 0 10px 0;
+}
+
+.modal-header .info-linha {
+    margin-bottom: 8px;
+    font-size: 15px;
+    color: #1e3c72;
+}
+
+.modal-header .info-linha strong {
+    font-weight: 600;
 }
 
 .modal-close-btn {
@@ -59,6 +73,7 @@
     cursor: pointer;
     line-height: 1;
     padding-left: 20px;
+    flex-shrink: 0;
 }
 
 .modal-close-btn:hover {
@@ -66,16 +81,87 @@
 }
 
 .modal-body {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: auto;
+    padding: 0;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Info container */
+.modal-info-container {
+    padding: 20px 25px;
+    background-color: white;
+    border-bottom: 1px solid #e5e5e5;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.info-linha {
+    margin-bottom: 8px;
+    font-size: 15px;
+    color: #1e3c72;
+}
+
+.info-linha strong {
+    color: #1e3c72;
+    font-weight: 600;
+}
+
+.info-fonte {
+    font-size: 14px;
+    color: #2a5298;
+    margin-top: 5px;
+}
+
+/* Valor apurado no relatório */
+.valor-apurado-info {
+    background-color: #e7f3ff;
+    padding: 12px 15px;
+    margin-bottom: 15px;
+    border-left: 4px solid #2a5298;
+    border-radius: 4px;
+    font-size: 14px;
+    color: #1e3c72;
+}
+
+.valor-apurado-info strong {
+    color: #1e3c72;
+    font-weight: 600;
+}
+
+/* Informação sobre eventos */
+.eventos-info {
+    background-color: #f0f4f8;
+    padding: 10px 15px;
+    margin-bottom: 15px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #5a6c7d;
+}
+
+.eventos-info strong {
+    color: #1e3c72;
+    font-weight: 600;
+}
+
+/* Container da tabela */
+.table-container {
+    padding: 0 25px 20px 25px;
+    overflow-x: auto;
+    max-height: calc(90vh - 250px); /* Ajusta altura máxima considerando cabeçalho e info fixa */
     overflow-y: auto;
 }
 
 /* Tabela de Lançamentos */
 .lancamentos-table {
-    width: auto;
+    width: 100%;
     min-width: 640px;
     border-collapse: collapse;
     font-size: 12px;
-    table-layout: fixed;
     white-space: nowrap;
 }
 
@@ -92,17 +178,33 @@
     font-weight: bold;
     position: sticky;
     top: 0;
+    z-index: 10;
 }
 
-.lancamentos-table col.col-conta { width: 110px; }
-.lancamentos-table col.col-ug { width: 90px; }
-.lancamentos-table col.col-doc { width: 130px; }
-.lancamentos-table col.col-evento { width: 80px; }
-.lancamentos-table col.col-dc { width: 50px; }
-.lancamentos-table col.col-valor { width: 140px; }
+.lancamentos-table th:first-child { width: 110px; }
+.lancamentos-table th:nth-child(2) { width: 90px; }
+.lancamentos-table th:nth-child(3) { width: 130px; }
+.lancamentos-table th:nth-child(4) { width: 80px; }
+.lancamentos-table th:nth-child(5) { width: 50px; text-align: center; }
+.lancamentos-table th:last-child { width: 140px; text-align: right; }
 
 .lancamentos-table td:nth-child(5) { text-align: center; }
-.lancamentos-table td:last-child, .lancamentos-table tfoot td { text-align: right; font-weight: bold; }
+.lancamentos-table td:last-child { text-align: right; font-weight: bold; }
+
+.lancamentos-table tbody tr:hover {
+    background-color: #f5f5f5;
+}
+
+.lancamentos-table tfoot tr {
+    background-color: #e9ecef;
+    font-weight: bold;
+}
+
+.lancamentos-table tfoot td {
+    padding: 12px 8px;
+    font-size: 14px;
+    border-top: 2px solid #1e3c72;
+}
 
 /* Botão de lançamentos */
 .btn-lancamentos {
@@ -120,6 +222,20 @@
 .btn-lancamentos:hover {
     background-color: #cbd5e0;
 }
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .modal-content {
+        max-width: 95%;
+        margin: 10px;
+    }
+    
+    .modal-header,
+    .modal-info-container,
+    .table-container {
+        padding: 15px;
+    }
+}
 </style>
 
 <script>
@@ -132,29 +248,32 @@ window.ModalLancamentos = (function() {
     function fechar() {
         modal.style.display = 'none';
         modalBody.innerHTML = '';
+        modalTitle.innerHTML = '';
     }
     
     async function abrir(button) {
         const parentRow = button.closest('tr');
-        const itemDescription = parentRow.querySelector('.item-description').textContent;
+        // Usar innerHTML para preservar quebras de linha (<br>) e outras tags
+        const itemDescriptionHtml = parentRow.querySelector('.item-description').innerHTML;
         const valorRealizado = parentRow.cells[3].textContent.trim();
         
-        // Verifica se há seletor de COUG na página
+        let titleHtml = '';
+        
+        // Adiciona a Unidade Gestora, se houver
         const cougSelect = document.getElementById('seletor-coug');
         const cougValue = cougSelect ? cougSelect.value : '';
-        let cougHeaderHtml = '';
-        
         if (cougValue && cougSelect) {
             const cougText = cougSelect.options[cougSelect.selectedIndex].text.replace('🏛️', '').trim();
-            cougHeaderHtml = `<h3 style="color: #555; font-size: 16px; margin-bottom: 10px;">Unidade Gestora: ${cougText}</h3>`;
+            titleHtml += `<h3>Unidade Gestora: ${cougText}</h3>`;
         }
         
-        modalTitle.innerHTML = `
-            ${cougHeaderHtml}
-            <h3>Lançamentos para: ${itemDescription}</h3>
-            <div style="margin-top: 5px; font-size: 14px;">Valor Apurado no Relatório: <strong>${valorRealizado}</strong></div>
-        `;
-        modalBody.innerHTML = '<p>Buscando lançamentos...</p>';
+        // Adiciona a descrição do item ao título
+        titleHtml += `<div class="info-linha" style="font-weight: normal; margin-top: 10px;">${itemDescriptionHtml}</div>`;
+        
+        // Define o título do modal
+        modalTitle.innerHTML = titleHtml;
+        
+        modalBody.innerHTML = '<p style="padding: 25px;">Buscando lançamentos...</p>';
         modal.style.display = 'flex';
         
         const params = JSON.parse(button.dataset.params);
@@ -173,6 +292,11 @@ window.ModalLancamentos = (function() {
             url.searchParams.set(key, params[key]);
         }
         
+        // Adiciona o valor do relatório se disponível
+        if (valorRealizado) {
+            url.searchParams.set('valor_relatorio', valorRealizado.replace(/[^\d,-]/g, '').replace(',', '.'));
+        }
+        
         try {
             const response = await fetch(url);
             const data = await response.json();
@@ -181,53 +305,16 @@ window.ModalLancamentos = (function() {
                 throw new Error(data.erro || 'Erro ao buscar dados.');
             }
             
-            // Se tem HTML pronto, usa ele
+            // Monta o conteúdo do corpo do modal
             if (data.html_tabela) {
                 modalBody.innerHTML = data.html_tabela;
-            } else if (data.tem_dados && data.lancamentos) {
-                // Monta a tabela manualmente se necessário
-                let tableHtml = `
-                    <table class="lancamentos-table">
-                        <colgroup>
-                            <col class="col-conta"><col class="col-ug"><col class="col-doc">
-                            <col class="col-evento"><col class="col-dc"><col class="col-valor">
-                        </colgroup>
-                        <thead>
-                            <tr>
-                                <th>Conta Contábil</th><th>UG Emitente</th><th>Documento</th>
-                                <th>Evento</th><th>D/C</th><th>Valor</th>
-                            </tr>
-                        </thead>
-                        <tbody>`;
-                
-                data.lancamentos.forEach(l => {
-                    tableHtml += `
-                        <tr>
-                            <td>${l.conta_contabil}</td>
-                            <td>${l.coug}</td>
-                            <td>${l.documento}</td>
-                            <td>${l.evento}</td>
-                            <td>${l.dc}</td>
-                            <td>${l.valor_formatado}</td>
-                        </tr>`;
-                });
-                
-                tableHtml += `
-                        </tbody>
-                        <tfoot>
-                            <tr>
-                                <td colspan="5">Total Líquido dos Lançamentos:</td>
-                                <td>${data.total_liquido_formatado}</td>
-                            </tr>
-                        </tfoot>
-                    </table>`;
-                modalBody.innerHTML = tableHtml;
-            } else {
-                modalBody.innerHTML = '<p>Nenhum lançamento encontrado para este item com os filtros aplicados.</p>';
+            } else if (!data.tem_dados) {
+                modalBody.innerHTML = `<div class="modal-info-container"><p>${data.mensagem || 'Nenhum lançamento encontrado.'}</p></div>`;
             }
+            
         } catch (error) {
             console.error('Erro ao buscar lançamentos:', error);
-            modalBody.innerHTML = `<p style="color: red;">Não foi possível carregar os lançamentos. ${error.message}</p>`;
+            modalBody.innerHTML = `<div class="modal-info-container"><p style="color: red;">Não foi possível carregar os lançamentos. ${error.message}</p></div>`;
         }
     }
     

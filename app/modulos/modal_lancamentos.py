@@ -29,6 +29,8 @@ class ModalLancamentos:
                 - fonte_id: ID da fonte
                 - subfonte_id: ID da subfonte
                 - alinea_id: ID da alínea
+                - coalinea: Código da alínea (para relatório por fonte)
+                - cofonte: Código da fonte (para relatório por fonte)
                 
         Returns:
             Lista de lançamentos encontrados
@@ -65,6 +67,15 @@ class ModalLancamentos:
         if filtros.get('alinea_id'):
             query += " AND COALINEA = ?"
             params.append(filtros['alinea_id'])
+            
+        # Filtros específicos para relatório por fonte
+        if filtros.get('coalinea'):
+            query += " AND COALINEA = ?"
+            params.append(filtros['coalinea'])
+            
+        if filtros.get('cofonte'):
+            query += " AND COFONTERECEITA = ?"
+            params.append(filtros['cofonte'])
             
         # Filtro de conta contábil para receitas
         query += " AND COCONTACONTABIL BETWEEN '621200000' AND '621399999'"
@@ -122,12 +133,14 @@ class ModalLancamentos:
                 
         return total
     
-    def formatar_lancamentos_para_modal(self, lancamentos: List[Dict]) -> Dict:
+    def formatar_lancamentos_para_modal(self, lancamentos: List[Dict], 
+                                      valor_relatorio: Optional[float] = None) -> Dict:
         """
         Formata os lançamentos para exibição no modal
         
         Args:
             lancamentos: Lista de lançamentos
+            valor_relatorio: Valor apurado no relatório (opcional)
             
         Returns:
             Dicionário com dados formatados para o modal
@@ -140,6 +153,13 @@ class ModalLancamentos:
         
         # Calcula o total
         total_liquido = self.calcular_total_liquido(lancamentos)
+        
+        # Extrai eventos únicos onde o 5º dígito é 0 ou 1
+        eventos_unicos = set()
+        for lanc in lancamentos:
+            evento = lanc.get('COEVENTO', '')
+            if len(evento) >= 5 and evento[4] in ['0', '1']:
+                eventos_unicos.add(evento)
         
         # Formata cada lançamento
         lancamentos_formatados = []
@@ -159,7 +179,10 @@ class ModalLancamentos:
             'lancamentos': lancamentos_formatados,
             'total_liquido': total_liquido,
             'total_liquido_formatado': formatar_moeda(total_liquido),
-            'quantidade': len(lancamentos)
+            'quantidade': len(lancamentos),
+            'eventos_unicos': sorted(list(eventos_unicos)),
+            'valor_relatorio': valor_relatorio,
+            'valor_relatorio_formatado': formatar_moeda(valor_relatorio) if valor_relatorio else None
         }
     
     def gerar_html_tabela(self, dados_formatados: Dict) -> str:
@@ -175,19 +198,41 @@ class ModalLancamentos:
         if not dados_formatados['tem_dados']:
             return f'<p>{dados_formatados["mensagem"]}</p>'
         
-        html = '''
-        <table class="lancamentos-table">
-            <colgroup>
-                <col class="col-conta"><col class="col-ug"><col class="col-doc">
-                <col class="col-evento"><col class="col-dc"><col class="col-valor">
-            </colgroup>
-            <thead>
-                <tr>
-                    <th>Conta Contábil</th><th>UG Emitente</th><th>Documento</th>
-                    <th>Evento</th><th>D/C</th><th>Valor</th>
-                </tr>
-            </thead>
-            <tbody>
+        html = '<div class="modal-info-container">'
+        
+        # Valor apurado no relatório (apenas se fornecido)
+        if dados_formatados.get('valor_relatorio_formatado'):
+            html += f'''
+                <div class="valor-apurado-info">
+                    <strong>Valor Apurado no Relatório:</strong> {dados_formatados['valor_relatorio_formatado']}
+                </div>
+            '''
+        
+        # Informação sobre eventos
+        if dados_formatados.get('eventos_unicos'):
+            html += f'''
+                <div class="eventos-info">
+                    <strong>Eventos:</strong> {', '.join(dados_formatados['eventos_unicos'])}
+                </div>
+            '''
+        
+        html += '</div>'
+        
+        # Tabela de lançamentos
+        html += '''
+        <div class="table-container">
+            <table class="lancamentos-table">
+                <colgroup>
+                    <col class="col-conta"><col class="col-ug"><col class="col-doc">
+                    <col class="col-evento"><col class="col-dc"><col class="col-valor">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th>Conta Contábil</th><th>UG Emitente</th><th>Documento</th>
+                        <th>Evento</th><th>D/C</th><th>Valor</th>
+                    </tr>
+                </thead>
+                <tbody>
         '''
         
         for lanc in dados_formatados['lancamentos']:
@@ -203,14 +248,15 @@ class ModalLancamentos:
             '''
         
         html += f'''
-            </tbody>
-            <tfoot>
-                <tr>
-                    <td colspan="5">Total Líquido dos Lançamentos:</td>
-                    <td>{dados_formatados['total_liquido_formatado']}</td>
-                </tr>
-            </tfoot>
-        </table>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="5">Total Líquido dos Lançamentos:</td>
+                        <td>{dados_formatados['total_liquido_formatado']}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
         '''
         
         return html
@@ -238,7 +284,9 @@ def processar_requisicao_lancamentos(conn: sqlite3.Connection, request_args: dic
             'cat_id': request_args.get('cat_id'),
             'fonte_id': request_args.get('fonte_id'),
             'subfonte_id': request_args.get('subfonte_id'),
-            'alinea_id': request_args.get('alinea_id')
+            'alinea_id': request_args.get('alinea_id'),
+            'coalinea': request_args.get('coalinea'),
+            'cofonte': request_args.get('cofonte')
         }
         
         # Valida filtros obrigatórios
@@ -251,8 +299,11 @@ def processar_requisicao_lancamentos(conn: sqlite3.Connection, request_args: dic
         # Busca os lançamentos
         lancamentos = modal.buscar_lancamentos(filtros)
         
+        # Pega o valor do relatório se fornecido
+        valor_relatorio = request_args.get('valor_relatorio', type=float)
+        
         # Formata para o modal
-        dados_formatados = modal.formatar_lancamentos_para_modal(lancamentos)
+        dados_formatados = modal.formatar_lancamentos_para_modal(lancamentos, valor_relatorio)
         
         # Adiciona o HTML da tabela
         dados_formatados['html_tabela'] = modal.gerar_html_tabela(dados_formatados)
