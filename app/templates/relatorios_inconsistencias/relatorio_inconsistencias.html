@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análise de Inconsistências</title>
+    
+    <style>
+        :root {
+            --primary-color: #003366; --primary-dark: #001a33; --primary-light: #0066cc;
+            --secondary-color: #cce5ff; --secondary-light: #f0f8ff; --accent-color: #28a745;
+            --danger-color: #dc3545; --warning-color: #f59e0b; --dark: #333333;
+            --gray-dark: #555555; --gray: #666666; --gray-light: #999999;
+            --gray-lighter: #e8ecf0; --gray-lightest: #f8f9fa; --white: #ffffff;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --radius: 0.75rem; --radius-sm: 0.5rem;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: var(--gray-lightest); color: var(--dark); line-height: 1.6; font-size: 15px; margin:0; padding:0; }
+        .main-container { min-height: 100vh; background: linear-gradient(180deg, var(--white) 0%, var(--gray-lightest) 100%); }
+        .modern-header { background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-color) 100%); color: var(--white); padding: 3rem 0; text-align: center; }
+        .modern-header h1 { font-size: 2.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .action-bar { background: var(--white); border-bottom: 1px solid var(--gray-lighter); position: sticky; top: 0; z-index: 100; box-shadow: var(--shadow-sm); }
+        .action-bar-content { max-width: 1400px; margin: 0 auto; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+        .action-buttons { display: flex; gap: 0.75rem; }
+        .btn { padding: 0.625rem 1.25rem; border-radius: var(--radius-sm); font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.2s ease; border: none; text-decoration: none; }
+        .btn-secondary { background: var(--white); color: var(--gray-dark); border: 1px solid var(--gray-lighter); }
+        .btn-secondary:hover { background: var(--gray-lightest); }
+        .modern-select { background: var(--white); color: var(--dark); padding: 0.625rem 1.25rem; border-radius: var(--radius-sm); font-size: 0.875rem; font-weight: 500; border: 1px solid var(--gray-lighter); cursor: pointer; min-width: 250px; }
+        .info-card { background: var(--white); border-left: 4px solid var(--primary-light); box-shadow: var(--shadow-sm); margin: 1.5rem auto; max-width: 1400px; padding: 1.5rem 2rem; border-radius: var(--radius-sm); }
+        .info-card-text span { color: var(--gray); font-size: 0.875rem; margin-right: 2rem; }
+        .info-card-text strong { color: var(--dark); font-weight: 600; }
+        .analysis-section { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        .analysis-title { font-size: 1.5rem; font-weight: 600; color: var(--primary-color); margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid var(--gray-lighter); }
+        .table-wrapper { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow-md); overflow-x: auto; margin-bottom: 3rem; }
+        .modern-table { width: 100%; border-collapse: collapse; }
+        .modern-table thead { background: var(--primary-color); color: var(--white); }
+        .modern-table thead th { padding: 1.25rem 1rem; text-align: left; font-weight: 600; font-size: 0.813rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid var(--primary-dark); }
+        .modern-table thead th:last-child { text-align: right; }
+        .modern-table tbody tr { border-bottom: 1px solid #eee; }
+        .modern-table tbody tr:hover { background-color: #f0f8ff !important; }
+        .modern-table tbody td { padding: 1rem; text-align: left; font-size: 0.875rem; color: var(--dark); word-break: break-all; }
+        .modern-table tbody td:last-child { text-align: right; font-weight: 600; }
+        .valor-negativo { color: var(--danger-color); }
+        .empty-state { text-align: center; padding: 4rem 2rem; color: var(--gray); background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow-md); }
+        .empty-state h3 { font-size: 1.25rem; color: var(--gray-dark); margin-bottom: 0.5rem; }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <header class="modern-header">
+            <h1>Análise de Inconsistências</h1>
+        </header>
+
+        <div class="action-bar">
+            <div class="action-bar-content">
+                <div class="action-buttons">
+                    <a href="/" class="btn btn-secondary"><span>🏠</span> Voltar ao Início</a>
+                </div>
+                <form method="get" id="form-exercicio">
+                    <select name="exercicio" class="modern-select" onchange="document.getElementById('form-exercicio').submit()">
+                        <option value="">Selecione o Exercício</option>
+                        {% for ano in exercicios %}
+                        <option value="{{ ano }}" {% if exercicio_selecionado == ano %}selected{% endif %}>Exercício de {{ ano }}</option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </div>
+        </div>
+
+        <div class="info-card">
+            <div class="info-card-text">
+                <span><strong>Exercício Analisado:</strong> {{ exercicio_selecionado }}</span>
+                <span><strong>Gerado em:</strong> {{ data_geracao }}</span>
+            </div>
+        </div>
+
+        <section class="analysis-section">
+            <h2 class="analysis-title">Arrecadação com Fontes de Superávit</h2>
+            <div class="table-wrapper">
+                {% if dados_fontes_superavit %}
+                <table class="modern-table">
+                    <thead>
+                        <tr>
+                            <th>COUG</th>
+                            <th>Conta Contábil</th>
+                            <th>Fonte de Superávit</th>
+                            <th>Saldo Contábil</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in dados_fontes_superavit %}
+                        <tr>
+                            <td>{{ item.COUG }}</td>
+                            <td>{{ item.COCONTACONTABIL }}</td>
+                            <td>{{ item.COFONTE }}</td>
+                            <td class="{% if item.saldo_total < 0 %}valor-negativo{% endif %}">{{ item.saldo_formatado }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state">
+                    <h3>Nenhuma Inconsistência Encontrada</h3>
+                    <p>Não foi identificada arrecadação em fontes de superávit para o exercício de {{ exercicio_selecionado }}.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <h2 class="analysis-title">Contas Correntes em UGs Inválidas</h2>
+            <div class="table-wrapper">
+                {% if dados_ugs_invalidas %}
+                <table class="modern-table">
+                    <thead>
+                        <tr>
+                            <th>Código UG</th>
+                            <th>Nome</th>
+                            <th>Conta Contábil</th>
+                            <th>Conta Corrente</th>
+                            <th>Saldo Contábil</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in dados_ugs_invalidas %}
+                        <tr>
+                            <td>{{ item.COUG }}</td>
+                            <td>{{ item.NOUG }}</td>
+                            <td>{{ item.COCONTACONTABIL }}</td>
+                            <td>{{ item.COCONTACORRENTE }}</td>
+                            <td class="{% if item.saldo_total < 0 %}valor-negativo{% endif %}">{{ item.saldo_formatado }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state">
+                    <h3>Nenhuma Inconsistência Encontrada</h3>
+                    <p>Não foram encontrados lançamentos em UGs com INTIPOADM=1 (exceto 130101) para o exercício de {{ exercicio_selecionado }}.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <h2 class="analysis-title">Contas Correntes com Saldo Acumulado Negativo</h2>
+            <div class="table-wrapper">
+                {% if dados_saldos_negativos %}
+                <table class="modern-table">
+                    <thead>
+                        <tr>
+                            <th>Código UG</th>
+                            <th>Nome</th>
+                            <th>Conta Contábil</th>
+                            <th>Conta Corrente</th>
+                            <th>Saldo Acumulado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in dados_saldos_negativos %}
+                        <tr>
+                            <td>{{ item.COUG }}</td>
+                            <td>{{ item.NOUG }}</td>
+                            <td>{{ item.COCONTACONTABIL }}</td>
+                            <td>{{ item.COCONTACORRENTE }}</td>
+                            <td class="valor-negativo">{{ item.saldo_formatado }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state">
+                    <h3>Nenhuma Inconsistência Encontrada</h3>
+                    <p>Não foram encontradas contas correntes com saldo acumulado negativo para o exercício de {{ exercicio_selecionado }}.</p>
+                </div>
+                {% endif %}
+            </div>
+
+        </section>
+    </div>
+</body>
+</html>
