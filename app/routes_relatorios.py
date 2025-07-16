@@ -784,3 +784,136 @@ def filter_formatar_percentual(valor):
     """Filtro para formatar percentuais"""
     # O valor já vem em percentual, só precisa formatar
     return formatar_percentual(valor/100 if valor else 0, casas_decimais=2)
+
+@relatorios_bp.route('/api/lancamentos-receita-fonte')
+def api_lancamentos_receita_fonte():
+    """API para buscar lançamentos do relatório receita/fonte"""
+    try:
+        # Conecta ao banco
+        conn = ConexaoBanco.conectar_completo()
+        
+        # Obtém parâmetros
+        ano = request.args.get('ano', type=int)
+        mes = request.args.get('mes', type=int)
+        coug = request.args.get('coug', '')
+        coalinea = request.args.get('coalinea', '')
+        cofonte = request.args.get('cofonte', '')
+        valor_relatorio = request.args.get('valor_relatorio', type=float, default=0)
+        
+        if not all([ano, mes, coug, coalinea]):
+            return jsonify({"erro": "Parâmetros obrigatórios faltando"}), 400
+        
+        # Query para buscar lançamentos
+        query = """
+        SELECT 
+            l.COCONTACONTABIL,
+            l.COUG,
+            l.NUDOCUMENTO,
+            l.COEVENTO,
+            l.INDEBITOCREDITO,
+            l.VALANCAMENTO
+        FROM lancamentos_db.lancamentos l
+        WHERE l.COEXERCICIO = ?
+          AND l.INMES <= ?
+          AND l.COUGCONTAB = ?
+          AND l.COALINEA = ?
+          AND l.COCONTACONTABIL BETWEEN '621200000' AND '621399999'
+        """
+        
+        params = [ano, mes, coug, coalinea]
+        
+        # Adiciona filtro de fonte se fornecido
+        if cofonte:
+            query += " AND l.COFONTE = ?"
+            params.append(cofonte)
+        
+        query += " ORDER BY l.NUDOCUMENTO, l.COEVENTO"
+        
+        cursor = conn.execute(query, params)
+        lancamentos = []
+        
+        for row in cursor:
+            lancamentos.append({
+                'conta_contabil': row['COCONTACONTABIL'],
+                'coug': row['COUG'],
+                'documento': row['NUDOCUMENTO'],
+                'evento': row['COEVENTO'],
+                'dc': row['INDEBITOCREDITO'],
+                'valor': row['VALANCAMENTO']
+            })
+        
+        # Calcula totais
+        total_debito = sum(l['valor'] for l in lancamentos if l['dc'] == 'D')
+        total_credito = sum(l['valor'] for l in lancamentos if l['dc'] == 'C')
+        total_liquido = total_credito - total_debito
+        
+        # Formata dados
+        from app.modulos.formatacao import formatar_moeda
+        
+        resultado = {
+            'tem_dados': len(lancamentos) > 0,
+            'quantidade': len(lancamentos),
+            'lancamentos': lancamentos,
+            'totais': {
+                'total_debito': total_debito,
+                'total_credito': total_credito,
+                'total_liquido': total_liquido
+            },
+            'valor_relatorio': valor_relatorio  # Adiciona o valor do relatório
+        }
+        
+        # Gera HTML da tabela
+        if lancamentos:
+            html = f"""
+            <div class="valor-apurado-info">
+                <strong>Valor Apurado no Relatório:</strong> {formatar_moeda(valor_relatorio)}
+            </div>
+            <table class="lancamentos-table">
+                <colgroup>
+                    <col class="col-conta"><col class="col-ug"><col class="col-doc">
+                    <col class="col-evento"><col class="col-dc"><col class="col-valor">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th>CONTA CONTÁBIL</th><th>UG EMITENTE</th><th>DOCUMENTO</th>
+                        <th>EVENTO</th><th>D/C</th><th>VALOR</th>
+                    </tr>
+                </thead>
+                <tbody>
+            """
+            
+            for lanc in lancamentos:
+                dc_class = 'tipo-debito' if lanc['dc'] == 'D' else 'tipo-credito'
+                html += f"""
+                    <tr>
+                        <td>{lanc['conta_contabil']}</td>
+                        <td>{lanc['coug']}</td>
+                        <td>{lanc['documento']}</td>
+                        <td>{lanc['evento']}</td>
+                        <td class="{dc_class}">{lanc['dc']}</td>
+                        <td class="text-right">{formatar_moeda(lanc['valor'])}</td>
+                    </tr>
+                """
+            
+            html += f"""
+                </tbody>
+                <tfoot>
+                    <tr class="total-row">
+                        <td colspan="5">Total Líquido dos Lançamentos:</td>
+                        <td class="text-right">{formatar_moeda(total_liquido)}</td>
+                    </tr>
+                </tfoot>
+            </table>
+            """
+            
+            resultado['html_tabela'] = html
+        else:
+            resultado['html_tabela'] = '<p>Nenhum lançamento encontrado para este item.</p>'
+        
+        conn.close()
+        return jsonify(resultado)
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"erro": str(e)}), 500

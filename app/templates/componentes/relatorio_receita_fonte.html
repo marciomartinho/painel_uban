@@ -75,6 +75,22 @@
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
 
+/* Valor apurado no relatório */
+.valor-apurado-info {
+    background-color: #e7f3ff;
+    padding: 12px 15px;
+    margin-bottom: 15px;
+    border-left: 4px solid #2a5298;
+    border-radius: 4px;
+    font-size: 14px;
+    color: #1e3c72;
+}
+
+.valor-apurado-info strong {
+    color: #1e3c72;
+    font-weight: 600;
+}
+
 .relatorio-receita-fonte-container .relatorio-header {
     display: flex;
     justify-content: space-between;
@@ -204,6 +220,17 @@
     font-weight: 500;
 }
 
+/* Container para conteúdo da célula com botão */
+.td-content-rf {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.text-content-rf {
+    flex: 1;
+}
+
 /* Níveis hierárquicos do relatório RF */
 #tabela-receita-fonte .nivel-rf-0 {
     background-color: #f0f4f8;
@@ -250,6 +277,32 @@
 .btn-expandir-rf .icone {
     font-size: 10px;
     line-height: 1;
+}
+
+/* Botão de lançamentos RF */
+.btn-lancamentos-rf {
+    display: none; /* Inicia escondido */
+    background-color: #e8ecf0;
+    color: #5a6c7d;
+    border: 1px solid #cbd5e0;
+    padding: 4px 12px;
+    font-size: 11px;
+    border-radius: 5px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+    margin-left: 10px;
+}
+
+.btn-lancamentos-rf:hover {
+    background-color: #2a5298;
+    color: white;
+    border-color: #1e3c72;
+}
+
+/* Mostra botão quando linha está visível e tem lançamentos */
+#tabela-receita-fonte .nivel-rf-1[style*="table-row"] .btn-lancamentos-rf {
+    display: inline-block;
 }
 
 /* Total geral RF */
@@ -338,6 +391,10 @@
     }
     
     .btn-expandir-rf {
+        display: none !important;
+    }
+    
+    .btn-lancamentos-rf {
         display: none !important;
     }
 }
@@ -454,6 +511,11 @@ window.RelatorioReceitaFonte = (function() {
             
             // Célula de descrição
             const tdDescricao = document.createElement('td');
+            const tdContentDiv = document.createElement('div');
+            tdContentDiv.className = 'td-content-rf';
+            
+            const textContentSpan = document.createElement('span');
+            textContentSpan.className = 'text-content-rf';
             
             if (item.tem_filhos) {
                 // Adiciona botão de expandir/colapsar
@@ -462,13 +524,25 @@ window.RelatorioReceitaFonte = (function() {
                 btnExpandir.dataset.id = item.id;
                 btnExpandir.innerHTML = '<span class="icone">▶</span>';
                 btnExpandir.onclick = () => toggleExpansaoRF(item.id);
-                tdDescricao.appendChild(btnExpandir);
+                textContentSpan.appendChild(btnExpandir);
             }
             
             const spanDescricao = document.createElement('span');
             spanDescricao.textContent = `${item.codigo} - ${item.descricao}`;
-            tdDescricao.appendChild(spanDescricao);
+            textContentSpan.appendChild(spanDescricao);
             
+            tdContentDiv.appendChild(textContentSpan);
+            
+            // Adiciona botão de lançamentos se aplicável (apenas para itens secundários no relatório por fonte)
+            if (item.nivel === 1 && data.tipo === 'fonte' && item.tem_lancamentos && data.coug_selecionada) {
+                const btnLancamentos = document.createElement('button');
+                btnLancamentos.className = 'btn-lancamentos-rf';
+                btnLancamentos.textContent = 'Lançamentos';
+                btnLancamentos.onclick = () => abrirModalLancamentosRF(item);
+                tdContentDiv.appendChild(btnLancamentos);
+            }
+            
+            tdDescricao.appendChild(tdContentDiv);
             tr.appendChild(tdDescricao);
             
             // Células de valores
@@ -539,6 +613,72 @@ window.RelatorioReceitaFonte = (function() {
             filhos.forEach(filho => {
                 filho.style.display = 'table-row';
             });
+        }
+    }
+
+    // Função para abrir modal de lançamentos
+async function abrirModalLancamentosRF(item) {
+    // Obtém parâmetros necessários
+    const urlParams = new URLSearchParams(window.location.search);
+    const coug = urlParams.get('coug');
+    
+    if (!coug || !item.params_lancamentos) {
+        alert('Dados insuficientes para buscar lançamentos');
+        return;
+    }
+    
+    // Monta parâmetros para a API
+    const params = {
+        ano: {{ periodo.ano }},
+        mes: {{ periodo.mes }},
+        coug: coug,
+        coalinea: item.params_lancamentos.coalinea,
+        cofonte: item.params_lancamentos.cofonte,
+        valor_relatorio: item.receita_atual  // Adiciona o valor do relatório
+    };
+    
+    // Abre o modal
+    abrirModalLancamentosGlobalRF(params, item.descricao);
+}
+
+    // Função para abrir o modal global
+    async function abrirModalLancamentosGlobalRF(params, descricaoItem) {
+        const modal = document.getElementById('lancamentos-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalBody = document.getElementById('modal-body');
+        
+        // Monta título
+        const cougSelect = document.getElementById('seletor-coug');
+        let tituloHtml = '';
+        
+        if (cougSelect) {
+            const cougText = cougSelect.options[cougSelect.selectedIndex].text.replace('🏛️', '').trim();
+            tituloHtml += `<h3 style="color: #555; font-size: 16px; margin-bottom: 10px;">Unidade Gestora: ${cougText}</h3>`;
+        }
+        
+        tituloHtml += `<h3>Lançamentos para: ${descricaoItem}</h3>`;
+        
+        modalTitle.innerHTML = tituloHtml;
+        modalBody.innerHTML = '<p>Buscando lançamentos...</p>';
+        modal.style.display = 'flex';
+        
+        // Monta URL da API
+        const url = new URL(`${window.location.origin}/relatorios/api/lancamentos-receita-fonte`);
+        Object.keys(params).forEach(key => url.searchParams.set(key, params[key]));
+        
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            if (!response.ok || data.erro) {
+                throw new Error(data.erro || 'Erro ao buscar dados');
+            }
+            
+            modalBody.innerHTML = data.html_tabela;
+            
+        } catch (error) {
+            console.error('Erro ao buscar lançamentos:', error);
+            modalBody.innerHTML = `<p style="color: red;">Erro ao carregar lançamentos: ${error.message}</p>`;
         }
     }
 

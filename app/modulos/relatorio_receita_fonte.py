@@ -15,6 +15,17 @@ class RelatorioReceitaFonte:
     
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
+        self.estrutura = self._verificar_estrutura()
+        
+    def _verificar_estrutura(self):
+        """Verifica se o banco de lançamentos está disponível"""
+        tem_lancamentos = False
+        try:
+            cursor = self.conn.execute("SELECT 1 FROM lancamentos_db.lancamentos LIMIT 1")
+            tem_lancamentos = True
+        except:
+            pass
+        return {'tem_lancamentos': tem_lancamentos}
         
     def gerar_relatorio_por_receita(self, ano: int, mes: int, 
                                    coug: Optional[str] = None, 
@@ -89,7 +100,7 @@ class RelatorioReceitaFonte:
         
         # Query principal
         query = f"""
-        WITH dados_agrupados AS (
+        WITH dados_agregados AS (
             SELECT 
                 fs.{campo_principal},
                 COALESCE(dp.{nome_principal}, 'Código ' || fs.{campo_principal}) as nome_principal,
@@ -166,7 +177,7 @@ class RelatorioReceitaFonte:
                     ELSE 0 
                 END) as receita_anterior
                 
-            FROM dados_agrupados
+            FROM dados_agregados
             WHERE COEXERCICIO IN ({ano}, {ano-1})
             GROUP BY {campo_principal}, nome_principal, 
                      {campo_secundario}, nome_secundario
@@ -238,7 +249,15 @@ class RelatorioReceitaFonte:
                     'previsao_atualizada': row['previsao_atualizada'] or 0,
                     'receita_atual': row['receita_atual'] or 0,
                     'receita_anterior': row['receita_anterior'] or 0,
-                    'tem_filhos': False
+                    'tem_filhos': False,
+                    # Adiciona informações para o modal de lançamentos quando for relatório por fonte
+                    'tem_lancamentos': self.estrutura['tem_lancamentos'] and coug and tipo == 'fonte' and (
+                        row['receita_atual'] != 0 or row['receita_anterior'] != 0
+                    ),
+                    'params_lancamentos': {
+                        'coalinea': row[campo_secundario] if tipo == 'fonte' else None,
+                        'cofonte': codigo_principal if tipo == 'fonte' else None
+                    } if tipo == 'fonte' else None
                 }
                 
                 grupos[codigo_principal]['itens_secundarios'].append(item_secundario)
@@ -331,5 +350,6 @@ def gerar_relatorio_receita_fonte(conn: sqlite3.Connection,
         'tipo': tipo,
         'dados': dados,
         'totais': totais,
-        'tem_dados': len(dados) > 0
+        'tem_dados': len(dados) > 0,
+        'coug_selecionada': coug
     }
