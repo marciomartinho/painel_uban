@@ -9,13 +9,10 @@ import pandas as pd
 from io import BytesIO
 from datetime import datetime
 import traceback
-
-# --- CORREÇÃO: Importações que faltavam foram adicionadas ---
 import psycopg2
 import psycopg2.extras
-from app.modulos.conexao_hibrida import ConexaoBanco, adaptar_query, get_db_environment
-# --- FIM DA CORREÇÃO ---
 
+from app.modulos.conexao_hibrida import ConexaoBanco, adaptar_query, get_db_environment
 from app.modulos.periodo import obter_periodo_referencia
 from app.modulos.formatacao import formatar_moeda, formatar_percentual
 from app.modulos.regras_contabeis_receita import get_filtro_conta, FILTROS_RELATORIO_ESPECIAIS
@@ -25,16 +22,11 @@ from app.modulos.cards_unidades_gestoras import gerar_cards_unidades
 from app.modulos.relatorio_receita_fonte import gerar_relatorio_receita_fonte
 from app.modulos.modal_lancamentos import processar_requisicao_lancamentos, gerar_botao_lancamentos
 
-# Cria o Blueprint
 relatorios_bp = Blueprint('relatorios', __name__, url_prefix='/relatorios')
 
-
 class ProcessadorDadosReceita:
-    """Processa dados para o relatório de balanço orçamentário"""
-    
     def __init__(self, conn):
         self.conn = conn
-        # --- CORREÇÃO: Lógica do cursor corrigida e simplificada ---
         if get_db_environment() == 'postgres':
             self.cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         else:
@@ -52,7 +44,7 @@ class ProcessadorDadosReceita:
             print(f"Erro ao buscar dados agregados: {e}")
             traceback.print_exc()
             return self._dados_exemplo()
-    
+
     def _montar_query_agregada(self, mes, ano, coug=None, filtro_relatorio_key=None):
         filtro_coug = self.coug_manager.aplicar_filtro_query("fs", coug)
         filtro_dinamico = ""
@@ -62,6 +54,7 @@ class ProcessadorDadosReceita:
             valores_str = ", ".join([f"'{v}'" for v in regra['valores']])
             filtro_dinamico = f"AND fs.{campo} IN ({valores_str})"
         
+        # --- CORREÇÃO: Query inteira com nomes em minúsculas ---
         return f"""
         WITH dados_agregados AS (
             SELECT 
@@ -75,9 +68,9 @@ class ProcessadorDadosReceita:
                 COALESCE(ali.noalinea, 'Alínea ' || fs.coalinea) as nome_alinea,
                 fs.coexercicio,
                 fs.inmes,
-                SUM(CASE WHEN {get_filtro_conta('PREVISAO_INICIAL_LIQUIDA').lower()} THEN COALESCE(fs.saldo_contabil, 0) ELSE 0 END) as previsao_inicial,
-                SUM(CASE WHEN {get_filtro_conta('PREVISAO_ATUALIZADA_LIQUIDA').lower()} THEN COALESCE(fs.saldo_contabil, 0) ELSE 0 END) as previsao_atualizada,
-                SUM(CASE WHEN {get_filtro_conta('RECEITA_LIQUIDA').lower()} THEN COALESCE(fs.saldo_contabil, 0) ELSE 0 END) as receita_liquida
+                SUM(CASE WHEN {get_filtro_conta('PREVISAO_INICIAL_LIQUIDA')} THEN COALESCE(fs.saldo_contabil, 0) ELSE 0 END) as previsao_inicial,
+                SUM(CASE WHEN {get_filtro_conta('PREVISAO_ATUALIZADA_LIQUIDA')} THEN COALESCE(fs.saldo_contabil, 0) ELSE 0 END) as previsao_atualizada,
+                SUM(CASE WHEN {get_filtro_conta('RECEITA_LIQUIDA')} THEN COALESCE(fs.saldo_contabil, 0) ELSE 0 END) as receita_liquida
             FROM fato_saldos fs
             LEFT JOIN dimensoes.categorias cat ON fs.categoriareceita = cat.cocategoriareceita
             LEFT JOIN dimensoes.origens ori ON fs.cofontereceita = ori.cofontereceita
@@ -101,8 +94,7 @@ class ProcessadorDadosReceita:
         """
     
     def _processar_resultados_agregados(self, resultados):
-        if not resultados:
-            return self._dados_exemplo()
+        if not resultados: return self._dados_exemplo()
         hierarquia = {}
         for row_dict in resultados:
             row_lower = {str(k).lower(): v for k, v in dict(row_dict).items()}
@@ -162,6 +154,9 @@ class ProcessadorDadosReceita:
     def _valores_zerados(self): return {'previsao_inicial': 0, 'previsao_atualizada': 0, 'receita_atual': 0, 'receita_anterior': 0}
     def _dados_exemplo(self): return [{'id': 'total', 'codigo': '', 'descricao': 'Nenhum dado encontrado', 'nivel': -1, 'classes': 'nivel--1', 'previsao_inicial': 0, 'previsao_atualizada': 0, 'receita_atual': 0, 'receita_anterior': 0, 'variacao_absoluta': 0, 'variacao_percentual': 0, 'tem_lancamentos': False, 'params_lancamentos': {}}]
 
+# ... (O restante do arquivo, incluindo as rotas, pode ser mantido como está)
+# ... (Nenhuma mudança necessária no resto do arquivo, pois ele já chama os métodos corrigidos acima)
+# ... (O código das rotas e filtros de template permanece o mesmo)
 def gerar_resumo_executivo(dados):
     if not dados or len(dados) <= 1: return None
     try:
@@ -306,20 +301,20 @@ def api_lancamentos_receita_fonte():
             query_params = [ano, mes, coug, coalinea]
             query_sql = f"""
                 SELECT 
-                    COCONTACONTABIL, COUG, NUDOCUMENTO, COEVENTO, INDEBITOCREDITO, VALANCAMENTO
+                    cocontacontabil, coug, nudocumento, coevento, indebitocredito, valancamento
                 FROM lancamentos_db.lancamentos
-                WHERE COEXERCICIO = ?
-                  AND INMES <= ?
-                  AND COUGCONTAB = ?
-                  AND COALINEA = ?
+                WHERE coexercicio = ?
+                  AND inmes <= ?
+                  AND cougcontab = ?
+                  AND coalinea = ?
                   AND ({get_filtro_conta('RECEITA_LIQUIDA')})
             """
             
             if cofonte:
-                query_sql += " AND COFONTE = ?"
+                query_sql += " AND cofonte = ?"
                 query_params.append(cofonte)
             
-            query_sql += " ORDER BY NUDOCUMENTO, COEVENTO"
+            query_sql += " ORDER BY nudocumento, coevento"
             
             query_adaptada = adaptar_query(query_sql)
             
