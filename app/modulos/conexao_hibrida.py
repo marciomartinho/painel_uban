@@ -1,166 +1,77 @@
 # app/modulos/conexao_hibrida.py
-"""Sistema de conexão híbrido - SQLite local + PostgreSQL produção"""
+"""
+Sistema de conexão híbrido - SQLite local + PostgreSQL produção
+Ponto central e ÚNICA fonte de verdade para conexões e queries.
+"""
 
 import os
 import sqlite3
+import psycopg2
+import psycopg2.extras
 
-def get_database_connection(banco_tipo='saldos'):
-    """
-    Retorna conexão apropriada baseada no ambiente
-    banco_tipo: 'saldos', 'lancamentos', 'dimensoes' (usado apenas no SQLite)
-    """
-    
-    # Detecta se está em produção (Railway)
+def get_db_environment():
+    """Verifica se está em produção (Railway/Postgres) ou local (SQLite)."""
     if os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('DATABASE_URL'):
-        return get_postgresql_connection()
+        return 'postgres'
     else:
-        return get_sqlite_connection(banco_tipo)
+        return 'sqlite'
 
-def get_postgresql_connection():
-    """Conexão PostgreSQL para produção"""
-    try:
-        import psycopg2
-        import psycopg2.extras
-        
-        database_url = os.environ.get('DATABASE_URL')
-        
-        if not database_url:
-            raise ValueError("DATABASE_URL não encontrada nas variáveis de ambiente")
-        
-        conn = psycopg2.connect(database_url)
-        
-        # Retorna um wrapper que simula SQLite
-        return PostgreSQLWrapper(conn)
-    except ImportError:
-        raise ImportError("psycopg2 não está instalado")
-    except Exception as e:
-        raise ConnectionError(f"Erro ao conectar PostgreSQL: {e}")
-
-
-class PostgreSQLWrapper:
-    """Wrapper para fazer PostgreSQL compatível com código SQLite"""
-    
-    def __init__(self, conn):
-        self.conn = conn
-        self.cursor_factory = psycopg2.extras.RealDictCursor
-    
-    def execute(self, query, params=None):
-        """Executa query e retorna cursor compatível"""
-        cursor = self.conn.cursor(cursor_factory=self.cursor_factory)
-        if params:
-            cursor.execute(query, params)
-        else:
-            cursor.execute(query)
-        return cursor
-    
-    def cursor(self):
-        """Retorna cursor"""
-        return self.conn.cursor(cursor_factory=self.cursor_factory)
-    
-    def close(self):
-        """Fecha conexão"""
-        self.conn.close()
-    
-    def commit(self):
-        """Commit das transações"""
-        self.conn.commit()
-    
-    def rollback(self):
-        """Rollback das transações"""
-        self.conn.rollback()
-
-def get_sqlite_connection(banco_tipo='saldos'):
-    """Conexão SQLite para desenvolvimento local"""
-    
-    # Mapeia tipos de banco para arquivos
-    bancos_map = {
-        'saldos': 'banco_saldo_receita.db',
-        'lancamentos': 'banco_lancamento_receita.db',
-        'dimensoes': 'banco_dimensoes.db'
-    }
-    
-    # Constrói o caminho correto
-    base_path = os.path.join(os.path.dirname(__file__), '../../dados/db')
-    arquivo_banco = bancos_map.get(banco_tipo, 'banco_saldo_receita.db')
-    caminho_completo = os.path.join(base_path, arquivo_banco)
-    
-    if not os.path.exists(caminho_completo):
-        raise FileNotFoundError(f"Banco SQLite não encontrado: {caminho_completo}")
-    
-    return sqlite3.connect(caminho_completo)
-
-def execute_query(query, params=None, banco_tipo='saldos'):
+def adaptar_query(query: str) -> str:
     """
-    Executa query de forma híbrida
+    Adapta a query removendo prefixos de schema para o ambiente PostgreSQL.
+    Ex: 'dimensoes.categorias' se torna 'categorias'.
     """
-    conn = get_database_connection(banco_tipo)
-    
-    try:
-        cursor = conn.cursor()
-        
-        if params:
-            cursor.execute(query, params)
-        else:
-            cursor.execute(query)
-        
-        # Se for SELECT, retorna dados
-        if query.strip().upper().startswith('SELECT'):
-            return cursor.fetchall()
-        else:
-            # Se for INSERT/UPDATE/DELETE, faz commit
-            conn.commit()
-            return cursor.rowcount
-    finally:
-        conn.close()
+    if get_db_environment() == 'postgres':
+        return query.replace('dimensoes.', '').replace('lancamentos_db.', '')
+    return query
 
-def get_database_info():
-    """Retorna informações sobre o banco atual"""
-    if os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('DATABASE_URL'):
-        return {
-            'tipo': 'PostgreSQL',
-            'ambiente': 'Produção (Railway)',
-            'url': os.environ.get('DATABASE_URL', 'Não definida')[:50] + '...'
-        }
-    else:
-        return {
-            'tipo': 'SQLite',
-            'ambiente': 'Desenvolvimento (Local)',
-            'caminho': 'dados/db/'
-        }
-
-# Classe compatível com código existente
 class ConexaoBanco:
-    """Classe para manter compatibilidade com código existente"""
-    
-    @staticmethod
-    def conectar_completo():
-        """Conecta ao banco principal (saldos) com anexos para SQLite"""
-        if os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('DATABASE_URL'):
-            # Em produção, retorna conexão PostgreSQL simples
-            return get_postgresql_connection()
-        else:
-            # Em desenvolvimento, conecta SQLite com anexos
-            conn = get_sqlite_connection('saldos')
-            
-            # Anexa outros bancos
+    """Gerenciador de contexto para garantir que a conexão seja sempre fechada."""
+
+    def __init__(self):
+        self.conn = None
+        self.env = get_db_environment()
+
+    def __enter__(self):
+        if self.env == 'postgres':
             try:
-                base_path = os.path.join(os.path.dirname(__file__), '../../dados/db')
-                
-                lancamentos_path = os.path.join(base_path, 'banco_lancamento_receita.db')
-                if os.path.exists(lancamentos_path):
-                    conn.execute(f"ATTACH DATABASE '{lancamentos_path}' AS lancamentos_db")
-                
-                dimensoes_path = os.path.join(base_path, 'banco_dimensoes.db')
-                if os.path.exists(dimensoes_path):
-                    conn.execute(f"ATTACH DATABASE '{dimensoes_path}' AS dimensoes")
-                
+                database_url = os.environ.get('DATABASE_URL')
+                if not database_url:
+                    raise ConnectionError("Variável de ambiente DATABASE_URL não encontrada.")
+                self.conn = psycopg2.connect(database_url)
+                self.conn.cursor_factory = psycopg2.extras.RealDictCursor
             except Exception as e:
-                print(f"Aviso: Erro ao anexar bancos: {e}")
-            
-            return conn
-    
-    @staticmethod
-    def fechar_conexao(conn):
-        """Fecha conexão"""
-        if conn:
-            conn.close()
+                print(f"Erro fatal ao conectar ao PostgreSQL: {e}")
+                raise
+        else: # sqlite
+            try:
+                # --- CORREÇÃO APLICADA AQUI ---
+                # O caminho agora sobe 3 níveis (a partir de /app/modulos) para chegar na raiz do projeto
+                project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                base_path = os.path.join(project_root, 'dados', 'db')
+                caminho_principal = os.path.join(base_path, 'banco_saldo_receita.db')
+
+                if not os.path.exists(caminho_principal):
+                    raise FileNotFoundError(f"Banco de dados principal não encontrado: {caminho_principal}")
+
+                self.conn = sqlite3.connect(caminho_principal)
+                self.conn.row_factory = sqlite3.Row
+
+                bancos_anexar = {
+                    'dimensoes': 'banco_dimensoes.db',
+                    'lancamentos_db': 'banco_lancamento_receita.db'
+                }
+                for alias, db_file in bancos_anexar.items():
+                    caminho_anexo = os.path.join(base_path, db_file)
+                    if os.path.exists(caminho_anexo):
+                        self.conn.execute(f"ATTACH DATABASE '{caminho_anexo}' AS {alias}")
+
+            except Exception as e:
+                print(f"Erro fatal ao conectar ou anexar bancos SQLite: {e}")
+                raise
+
+        return self.conn
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.conn:
+            self.conn.close()
