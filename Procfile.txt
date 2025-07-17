@@ -1,1 +1,1 @@
-web: gunicorn app:app
+web: python povoar_postgres.py && gunicorn wsgi:app --log-file -

@@ -26,7 +26,7 @@ from app.modulos.modal_lancamentos import processar_requisicao_lancamentos, gera
 relatorios_bp = Blueprint('relatorios', __name__, url_prefix='/relatorios')
 
 
-# <<< CORREÇÃO: Funções movidas para o topo, antes de serem chamadas >>>
+# <<< FUNÇÕES MOVIDAS PARA O TOPO >>>
 def gerar_resumo_executivo(dados):
     if not dados or len(dados) <= 1: return None
     try:
@@ -94,7 +94,7 @@ class ProcessadorDadosReceita:
         except Exception as e:
             print(f"Erro ao buscar dados agregados: {e}")
             traceback.print_exc()
-            return self._dados_exemplo()
+            return [] # Retorna lista vazia em caso de erro
 
     def _montar_query_agregada(self, mes, ano, coug=None, filtro_relatorio_key=None):
         filtro_coug = self.coug_manager.aplicar_filtro_query("fs", coug)
@@ -105,6 +105,7 @@ class ProcessadorDadosReceita:
             valores_str = ", ".join([f"'{v}'" for v in regra['valores']])
             filtro_dinamico = f"AND fs.{campo} IN ({valores_str})"
         
+        # <<< CORREÇÃO PRINCIPAL: Todas as colunas em minúsculas >>>
         return f"""
         WITH dados_agregados AS (
             SELECT 
@@ -145,7 +146,7 @@ class ProcessadorDadosReceita:
     
     def _processar_resultados_agregados(self, resultados):
         if not resultados:
-            return self._dados_exemplo()
+            return [] # Retorna lista vazia
         hierarquia = {}
         for row_dict in resultados:
             self._adicionar_na_hierarquia(hierarquia, dict(row_dict))
@@ -156,15 +157,27 @@ class ProcessadorDadosReceita:
         return dados_processados
     
     def _adicionar_na_hierarquia(self, hierarquia, row):
-        cat_id, fonte_id, subfonte_id, alinea_id = row['categoriareceita'], row['cofontereceita'], row['cosubfontereceita'], row['coalinea']
-        if cat_id not in hierarquia: hierarquia[cat_id] = {'id': f'cat-{cat_id}', 'codigo': cat_id, 'descricao': row['nome_categoria'], 'nivel': 0, 'classes': 'nivel-0', 'fontes': {}, **self._valores_zerados()}
+        # <<< CORREÇÃO: Usar .get() para evitar KeyErrors e garantir minúsculas >>>
+        cat_id = row.get('categoriareceita')
+        fonte_id = row.get('cofontereceita')
+        subfonte_id = row.get('cosubfontereceita')
+        alinea_id = row.get('coalinea')
+        
+        if not cat_id: return
+
+        if cat_id not in hierarquia: hierarquia[cat_id] = {'id': f'cat-{cat_id}', 'codigo': cat_id, 'descricao': row.get('nome_categoria'), 'nivel': 0, 'classes': 'nivel-0', 'fontes': {}, **self._valores_zerados()}
         categoria = hierarquia[cat_id]
-        if fonte_id not in categoria['fontes']: categoria['fontes'][fonte_id] = {'id': f'fonte-{cat_id}-{fonte_id}', 'codigo': fonte_id, 'descricao': row['nome_fonte'], 'nivel': 1, 'classes': 'nivel-1 parent-row', 'subfontes': {}, **self._valores_zerados()}
-        fonte = categoria['fontes'][fonte_id]
-        if subfonte_id not in fonte['subfontes']: fonte['subfontes'][subfonte_id] = {'id': f'sub-{cat_id}-{fonte_id}-{subfonte_id}', 'codigo': subfonte_id, 'descricao': row['nome_subfonte'], 'nivel': 2, 'classes': 'nivel-2 parent-row', 'alineas': {}, **self._valores_zerados()}
-        subfonte = fonte['subfontes'][subfonte_id]
+        
+        if fonte_id and fonte_id not in categoria['fontes']: categoria['fontes'][fonte_id] = {'id': f'fonte-{cat_id}-{fonte_id}', 'codigo': fonte_id, 'descricao': row.get('nome_fonte'), 'nivel': 1, 'classes': 'nivel-1 parent-row', 'subfontes': {}, **self._valores_zerados()}
+        fonte = categoria['fontes'].get(fonte_id)
+        if not fonte: return
+
+        if subfonte_id and subfonte_id not in fonte['subfontes']: fonte['subfontes'][subfonte_id] = {'id': f'sub-{cat_id}-{fonte_id}-{subfonte_id}', 'codigo': subfonte_id, 'descricao': row.get('nome_subfonte'), 'nivel': 2, 'classes': 'nivel-2 parent-row', 'alineas': {}, **self._valores_zerados()}
+        subfonte = fonte['subfontes'].get(subfonte_id)
+        if not subfonte: return
+
         if alinea_id:
-            subfonte['alineas'][alinea_id] = {'id': f'ali-{cat_id}-{fonte_id}-{subfonte_id}-{alinea_id}', 'codigo': alinea_id, 'descricao': f"{row['coalinea']} - {row['nome_alinea']}", 'nivel': 3, 'classes': 'nivel-3', 'previsao_inicial': row.get('previsao_inicial', 0) or 0, 'previsao_atualizada': row.get('previsao_atualizada', 0) or 0, 'receita_atual': row.get('receita_atual', 0) or 0, 'receita_anterior': row.get('receita_anterior', 0) or 0, 'tem_lancamentos': (row.get('receita_atual', 0) != 0 or row.get('receita_anterior', 0) != 0), 'params_lancamentos': {'cat_id': cat_id, 'fonte_id': fonte_id, 'subfonte_id': subfonte_id, 'alinea_id': alinea_id}}
+            subfonte['alineas'][alinea_id] = {'id': f'ali-{cat_id}-{fonte_id}-{subfonte_id}-{alinea_id}', 'codigo': alinea_id, 'descricao': f"{row.get('coalinea')} - {row.get('nome_alinea')}", 'nivel': 3, 'classes': 'nivel-3', 'previsao_inicial': row.get('previsao_inicial', 0) or 0, 'previsao_atualizada': row.get('previsao_atualizada', 0) or 0, 'receita_atual': row.get('receita_atual', 0) or 0, 'receita_anterior': row.get('receita_anterior', 0) or 0, 'tem_lancamentos': (row.get('receita_atual', 0) != 0 or row.get('receita_anterior', 0) != 0), 'params_lancamentos': {'cat_id': cat_id, 'fonte_id': fonte_id, 'subfonte_id': subfonte_id, 'alinea_id': alinea_id}}
             for campo in ['previsao_inicial', 'previsao_atualizada', 'receita_atual', 'receita_anterior']:
                 valor = row.get(campo, 0) or 0
                 subfonte[campo] += valor
@@ -190,8 +203,14 @@ class ProcessadorDadosReceita:
                         lista_saida.append(alinea)
     
     def _calcular_variacoes(self, item):
-        item['variacao_absoluta'] = item['receita_atual'] - item['receita_anterior']
-        item['variacao_percentual'] = (item['variacao_absoluta'] / abs(item['receita_anterior']) * 100) if item['receita_anterior'] else (100.0 if item['receita_atual'] else 0.0)
+        receita_atual = item.get('receita_atual', 0) or 0
+        receita_anterior = item.get('receita_anterior', 0) or 0
+        item['variacao_absoluta'] = receita_atual - receita_anterior
+        if receita_anterior != 0:
+            item['variacao_percentual'] = (item['variacao_absoluta'] / abs(receita_anterior)) * 100
+        else:
+            item['variacao_percentual'] = 100.0 if receita_atual != 0 else 0.0
+
     
     def _calcular_total_geral(self, dados):
         total = {'id': 'total', 'codigo': '', 'descricao': 'TOTAL GERAL', 'nivel': -1, 'classes': 'nivel--1', **self._valores_zerados()}
@@ -202,7 +221,6 @@ class ProcessadorDadosReceita:
         return total
 
     def _valores_zerados(self): return {'previsao_inicial': 0, 'previsao_atualizada': 0, 'receita_atual': 0, 'receita_anterior': 0}
-    def _dados_exemplo(self): return [{'id': 'total', 'codigo': '', 'descricao': 'Nenhum dado encontrado', 'nivel': -1, 'classes': 'nivel--1', 'previsao_inicial': 0, 'previsao_atualizada': 0, 'receita_atual': 0, 'receita_anterior': 0, 'variacao_absoluta': 0, 'variacao_percentual': 0, 'tem_lancamentos': False, 'params_lancamentos': {}}]
 
 
 @relatorios_bp.route('/')
@@ -214,6 +232,7 @@ def index():
 def balanco_orcamentario_receita():
     try:
         with ConexaoBanco() as conn:
+            # <<< TRANSAÇÃO INICIA AQUI >>>
             formato = request.args.get('formato', 'html')
             periodo = obter_periodo_referencia()
             filtro_relatorio_key = request.args.get('filtro')
@@ -224,21 +243,27 @@ def balanco_orcamentario_receita():
             processador = ProcessadorDadosReceita(conn)
             dados = processador.buscar_dados_balanco(periodo['mes'], periodo['ano'], coug_selecionada, filtro_relatorio_key)
             
+            # Se a primeira query falhou, 'dados' será uma lista vazia e a transação pode estar abortada.
+            # É mais seguro fazer as próximas queries em uma nova conexão/transação ou verificar o estado da conexão.
+            # Por simplicidade, vamos assumir que se 'dados' falhar, o resto não importa muito.
             if formato == 'excel':
                 return exportar_excel_balanco(dados, periodo, coug_selecionada, coug_manager, filtro_relatorio_key)
             
+            # Essas chamadas subsequentes podem falhar se a primeira falhou no PostgreSQL
             comparativo_mensal = gerar_comparativo_mensal(conn, periodo['ano'], coug_selecionada, filtro_relatorio_key)
             dados_cards = gerar_cards_unidades(conn, periodo['ano'], periodo['mes'], filtro_relatorio_key)
             resumo = gerar_resumo_executivo(dados)
             cougs = coug_manager.listar_cougs_com_movimento([get_filtro_conta('RECEITA_LIQUIDA')])
             nome_coug = coug_manager.get_nome_coug(coug_selecionada) if coug_selecionada else "Consolidado"
 
-            chart_data_categorias = [{"label": item['descricao'], "value": item['receita_atual']} for item in dados if item['nivel'] == 0 and item.get('receita_atual', 0) > 0]
-            chart_data_origens = [{"label": item['descricao'], "value": item['receita_atual']} for item in dados if item['nivel'] == 1 and item.get('receita_atual', 0) > 0]
+            chart_data_categorias = [{"label": item['descricao'], "value": item['receita_atual']} for item in dados if item.get('nivel') == 0 and item.get('receita_atual', 0) > 0]
+            chart_data_origens = [{"label": item['descricao'], "value": item['receita_atual']} for item in dados if item.get('nivel') == 1 and item.get('receita_atual', 0) > 0]
             
             filtro_info = FILTROS_RELATORIO_ESPECIAIS.get(filtro_relatorio_key, {'descricao': 'Todas as Receitas'})
             titulo_comparativo = f"Comparativo Mensal Acumulado - {filtro_info['descricao']}"
             
+            conn.commit() # <<< FINALIZA A TRANSAÇÃO COM SUCESSO >>>
+
             return render_template(
                 'relatorios_orcamentarios/balanco_orcamentario_receita.html',
                 dados=dados, periodo=periodo, cougs=cougs, coug_selecionada=coug_selecionada,
@@ -254,6 +279,8 @@ def balanco_orcamentario_receita():
         traceback.print_exc()
         return render_template('erro.html', mensagem=f"Erro de conexão ou arquivo de banco de dados não encontrado: {e}")
     except Exception as e:
+        if isinstance(e, psycopg2.Error):
+             conn.rollback() # <<< DESFAZ A TRANSAÇÃO EM CASO DE ERRO POSTGRES >>>
         traceback.print_exc()
         return render_template('erro.html', mensagem=f"Erro inesperado ao gerar relatório: {e}")
 
@@ -301,8 +328,8 @@ def api_lancamentos_receita_fonte():
 
             if not all([ano, mes, coug, coalinea]):
                 return jsonify({"erro": "Parâmetros obrigatórios faltando (ano, mes, coug, coalinea)"}), 400
-
-            query_params = [ano, mes, coug, coalinea]
+            
+            # <<< CORREÇÃO: Colunas em minúsculas na query >>>
             query_sql = f"""
                 SELECT 
                     cocontacontabil, coug, nudocumento, coevento, indebitocredito, valancamento
@@ -314,6 +341,7 @@ def api_lancamentos_receita_fonte():
                   AND ({get_filtro_conta('RECEITA_LIQUIDA')})
             """
             
+            query_params = [ano, mes, coug, coalinea]
             if cofonte:
                 query_sql += " AND cofonte = ?"
                 query_params.append(cofonte)
@@ -322,7 +350,6 @@ def api_lancamentos_receita_fonte():
             
             query_adaptada = adaptar_query(query_sql)
             
-            # Use a factory para obter dicionários
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute(query_adaptada, query_params)

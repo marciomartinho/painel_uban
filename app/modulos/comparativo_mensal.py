@@ -7,7 +7,6 @@ Mostra a evolução acumulada mês a mês com variações percentuais
 import sqlite3
 from typing import List, Dict, Optional
 
-# Importações corrigidas e centralizadas
 from app.modulos.formatacao import formatar_moeda, formatar_percentual
 from app.modulos.regras_contabeis_receita import get_filtro_conta, FILTROS_RELATORIO_ESPECIAIS
 from app.modulos.conexao_hibrida import adaptar_query
@@ -37,8 +36,7 @@ class ComparativoMensalAcumulado:
         
         where_clause = " AND " + " AND ".join(filtros_sql) if filtros_sql else ""
         
-        # --- CORREÇÃO APLICADA AQUI ---
-        # Removido o prefixo "dim_tempo." duplicado. Agora é "FROM dim_tempo"
+        # <<< CORREÇÃO: Nomes de colunas em minúsculas >>>
         query_original = f"""
         WITH meses AS (
             SELECT DISTINCT inmes, nome_mes FROM dim_tempo WHERE coexercicio = {ano}
@@ -51,7 +49,7 @@ class ComparativoMensalAcumulado:
             FROM fato_saldos fs
             WHERE
                 coexercicio IN ({ano}, {ano - 1})
-                AND {get_filtro_conta('RECEITA_LIQUIDA').lower()}
+                AND {get_filtro_conta('RECEITA_LIQUIDA')}
                 {where_clause}
             GROUP BY coexercicio, inmes
         )
@@ -67,14 +65,27 @@ class ComparativoMensalAcumulado:
         query_adaptada = adaptar_query(query_original)
         
         cursor = self.conn.cursor()
-        cursor.execute(query_adaptada)
         
-        resultados = []
-        for row_dict in cursor.fetchall():
-            row = {str(k).lower(): v for k, v in dict(row_dict).items()}
+        # <<< CORREÇÃO: Usar RealDictCursor ou equivalente para obter dicionários >>>
+        # A classe ConexaoBanco já deve lidar com isso. Apenas garantindo que o processamento seja robusto.
+        try:
+            cursor.execute(query_adaptada)
+            # Tenta obter colunas do cursor para mapeamento dinâmico
+            colunas = [desc[0].lower() for desc in cursor.description]
+            resultados = [dict(zip(colunas, row)) for row in cursor.fetchall()]
+        except Exception:
+            # Fallback para o método antigo se o de cima falhar
+            cursor.execute(query_adaptada)
+            resultados = [dict(row) for row in cursor.fetchall()]
+
+
+        dados_finais = []
+        for row in resultados:
+            # Garante que as chaves estão em minúsculas
+            row_lower = {k.lower(): v for k, v in row.items()}
             
-            receita_atual = row.get('receita_atual') or 0
-            receita_anterior = row.get('receita_anterior') or 0
+            receita_atual = row_lower.get('receita_atual') or 0
+            receita_anterior = row_lower.get('receita_anterior') or 0
 
             if receita_atual != 0 or receita_anterior != 0:
                 variacao_absoluta = receita_atual - receita_anterior
@@ -83,9 +94,9 @@ class ComparativoMensalAcumulado:
                 else:
                     variacao_percentual = 100.0 if receita_atual != 0 else 0.0
 
-                resultados.append({
-                    'mes': row['inmes'],
-                    'nome_mes': row['nome_mes'],
+                dados_finais.append({
+                    'mes': row_lower.get('inmes'),
+                    'nome_mes': row_lower.get('nome_mes'),
                     'ano_atual': ano,
                     'ano_anterior': ano - 1,
                     'receita_atual': receita_atual,
@@ -94,7 +105,7 @@ class ComparativoMensalAcumulado:
                     'variacao_percentual': variacao_percentual
                 })
         
-        return resultados
+        return dados_finais
     
     def formatar_para_html(self, dados: List[Dict]) -> Dict:
         if not dados:

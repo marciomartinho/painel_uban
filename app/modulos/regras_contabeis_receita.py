@@ -1,7 +1,7 @@
 # app/modulos/regras_contabeis_receita.py
 """Regras para classificação de contas contábeis e filtros de relatórios"""
 
-# --- CORREÇÃO: Todas as regras de filtro SQL agora usam 'cocontacontabil' em minúsculas ---
+# <<< CORREÇÃO: Todas as regras de filtro SQL agora usam 'cocontacontabil' em minúsculas >>>
 REGRAS_CONTAS = {
     'PREVISAO_INICIAL': {
         'descricao': 'Previsão Inicial',
@@ -37,7 +37,7 @@ REGRAS_CONTAS = {
     }
 }
 
-# <<< CORREÇÃO: campo_filtro também em minúsculas >>>
+# <<< CORREÇÃO: campo_filtro também em minúsculas para garantir consistência >>>
 FILTROS_RELATORIO_ESPECIAIS = {
     'tributarias': {
         'descricao': 'Receitas Tributárias',
@@ -49,7 +49,6 @@ FILTROS_RELATORIO_ESPECIAIS = {
         'campo_filtro': 'cofontereceita',
         'valores': ['12', '72']
     },
-    # ... (restante dos filtros permanecem iguais, pois já usavam minúsculas)
     'patrimonial': {
         'descricao': 'Receita Patrimonial',
         'campo_filtro': 'cofontereceita',

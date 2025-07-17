@@ -1,7 +1,7 @@
 # povoar_postgres.py
 import os
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 import time
 import chardet
 
@@ -9,48 +9,51 @@ import chardet
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CAMINHO_DADOS_BRUTOS = os.path.join(BASE_DIR, 'dados', 'dados_brutos')
 
-# Mapeamento de arquivos para nomes de tabelas (tudo em minúsculas)
+# Mapeamento de arquivos para tabelas, indicando o esquema
+# Esquema 'dimensoes' para tabelas de dimensão, 'public' para fatos.
 ARQUIVOS_PARA_POVOAR = {
-    'dimensao/receita_categoria.csv': 'categorias',
-    'dimensao/receita_origem.csv': 'origens',
-    'dimensao/receita_especie.csv': 'especies',
-    'dimensao/receita_especificacao.csv': 'especificacoes',
-    'dimensao/receita_alinea.csv': 'alineas',
-    'dimensao/fonte.csv': 'fontes',
-    'dimensao/contacontabil.csv': 'contas',
-    'dimensao/unidadegestora.csv': 'unidades_gestoras',
-    'ReceitaSaldo.xlsx': 'fato_saldos',
-    'ReceitaLancamento.xlsx': 'lancamentos'
+    # Tabelas no esquema 'dimensoes'
+    'dimensao/receita_categoria.csv': ('dimensoes', 'categorias'),
+    'dimensao/receita_origem.csv': ('dimensoes', 'origens'),
+    'dimensao/receita_especie.csv': ('dimensoes', 'especies'),
+    'dimensao/receita_especificacao.csv': ('dimensoes', 'especificacoes'),
+    'dimensao/receita_alinea.csv': ('dimensoes', 'alineas'),
+    'dimensao/fonte.csv': ('dimensoes', 'fontes'),
+    'dimensao/contacontabil.csv': ('dimensoes', 'contas'),
+    'dimensao/unidadegestora.csv': ('dimensoes', 'unidades_gestoras'),
+    # Tabelas no esquema 'public' (principal)
+    'ReceitaSaldo.xlsx': ('public', 'fato_saldos'),
+    'ReceitaLancamento.xlsx': ('public', 'lancamentos')
 }
 
 def detectar_encoding(arquivo_path):
     """Detecta o encoding de um arquivo CSV."""
     with open(arquivo_path, 'rb') as file:
-        raw_data = file.read(100000)
-        result = chardet.detect(raw_data)
-        return result['encoding']
+        return chardet.detect(file.read(100000))['encoding']
 
 def ler_arquivo(caminho_completo):
     """Lê um arquivo .csv ou .xlsx e retorna um DataFrame."""
-    if caminho_completo.endswith('.xlsx'):
-        print(f"  Lendo Excel: {os.path.basename(caminho_completo)}...")
-        return pd.read_excel(caminho_completo, engine='openpyxl')
-    elif caminho_completo.endswith('.csv'):
-        print(f"  Lendo CSV: {os.path.basename(caminho_completo)}...")
-        # <<< CORREÇÃO: Tentar múltiplos separadores >>>
-        try:
-            encoding = detectar_encoding(caminho_completo)
-            print(f"    - Encoding detectado: {encoding}")
-            return pd.read_csv(caminho_completo, encoding=encoding, on_bad_lines='skip', sep=';')
-        except Exception:
-             return pd.read_csv(caminho_completo, encoding=encoding, on_bad_lines='skip', sep=',')
-    return None
+    if not os.path.exists(caminho_completo):
+        print(f"  ⚠️  AVISO: Arquivo não encontrado, pulando: {os.path.basename(caminho_completo)}")
+        return None
 
-def processar_dataframe_especial(df, nome_tabela):
-    """Aplica transformações especiais para as tabelas de fatos."""
-    # <<< CORREÇÃO: Padroniza TODOS os nomes de colunas para minúsculas >>>
+    print(f"  Lendo arquivo: {os.path.basename(caminho_completo)}...")
+    if caminho_completo.endswith('.xlsx'):
+        return pd.read_excel(caminho_completo, engine='openpyxl')
+    
+    encoding = detectar_encoding(caminho_completo)
+    try:
+        df = pd.read_csv(caminho_completo, encoding=encoding, on_bad_lines='warn', sep=';', dtype=str)
+        if len(df.columns) <= 1:
+            df = pd.read_csv(caminho_completo, encoding=encoding, on_bad_lines='warn', sep=',', dtype=str)
+        return df
+    except Exception as e:
+        print(f"  ❌ Erro ao ler CSV {os.path.basename(caminho_completo)}: {e}")
+        return None
+
+def processar_dataframe(df, nome_tabela):
+    """Aplica transformações nos DataFrames."""
     df.columns = [str(col).lower().replace(' ', '_') for col in df.columns]
-    print("    - Nomes de colunas padronizados para minúsculas.")
 
     if nome_tabela in ['fato_saldos', 'lancamentos']:
         print(f"  Processando colunas especiais para '{nome_tabela}'...")
@@ -69,10 +72,8 @@ def processar_dataframe_especial(df, nome_tabela):
             
             def calcular_saldo(row):
                 conta = str(row.get('cocontacontabil', '')).strip()
-                debito = row.get('vadebito', 0)
-                credito = row.get('vacredito', 0)
-                if conta.startswith('5'): return debito - credito
-                if conta.startswith('6'): return credito - debito
+                if conta.startswith('5'): return row.get('vadebito', 0) - row.get('vacredito', 0)
+                if conta.startswith('6'): return row.get('vacredito', 0) - row.get('vadebito', 0)
                 return 0.0
             
             df['saldo_contabil'] = df.apply(calcular_saldo, axis=1)
@@ -86,63 +87,50 @@ def main():
 
     db_url = os.environ.get('DATABASE_URL')
     if not db_url:
-        print("\n❌ ERRO: A variável de ambiente 'DATABASE_URL' não foi definida.")
-        print("   Defina-a com a URL pública do seu banco de dados do Railway.")
+        print("\n❌ ERRO: Variável de ambiente 'DATABASE_URL' não definida.")
         return
 
-    # IMPORTANTE: Para o SQLAlchemy se conectar corretamente ao psycopg2
     if db_url.startswith("postgres://"):
-        db_url = db_url.replace("postgres://", "postgresql://", 1)
+        db_url = db_url.replace("postgres://", "postgresql+psycopg2://", 1)
 
-    print(f"\nConectando ao banco: ...{db_url[-20:]}")
-    
     try:
         engine = create_engine(db_url)
         with engine.connect() as connection:
-             print("✅ Conexão com PostgreSQL estabelecida com sucesso!")
+            print("✅ Conexão com PostgreSQL estabelecida!")
+            # Criar o schema 'dimensoes'
+            connection.execute(text("CREATE SCHEMA IF NOT EXISTS dimensoes"))
+            connection.commit()
+            print("✅ Esquema 'dimensoes' garantido.")
     except Exception as e:
-        print(f"\n❌ ERRO: Não foi possível conectar ao banco de dados: {e}")
+        print(f"\n❌ ERRO: Não foi possível conectar ou criar esquema: {e}")
         return
 
     start_time_total = time.time()
 
-    for arquivo, nome_tabela in ARQUIVOS_PARA_POVOAR.items():
-        print(f"\n--- Processando: {arquivo} -> Tabela: {nome_tabela} ---")
+    for arquivo, (esquema, nome_tabela) in ARQUIVOS_PARA_POVOAR.items():
+        print(f"\n--- Processando: {arquivo} -> Esquema: {esquema}, Tabela: {nome_tabela} ---")
         start_time_tabela = time.time()
-        caminho_completo = os.path.join(CAMINHO_DADOS_BRUTOS, arquivo)
-
-        if not os.path.exists(caminho_completo):
-            print(f"  ⚠️  AVISO: Arquivo não encontrado, pulando: {caminho_completo}")
-            continue
+        
+        df = ler_arquivo(os.path.join(CAMINHO_DADOS_BRUTOS, arquivo))
+        if df is None: continue
 
         try:
-            df = ler_arquivo(caminho_completo)
-            if df is None: continue
+            df = processar_dataframe(df, nome_tabela)
             
-            df = processar_dataframe_especial(df, nome_tabela)
-            
-            # <<< CORREÇÃO: Garante que o nome da tabela também está em minúsculas >>>
-            nome_tabela_lower = nome_tabela.lower()
-            
-            print(f"  Enviando {len(df)} registros para a tabela '{nome_tabela_lower}'...")
-            df.to_sql(name=nome_tabela_lower, con=engine, if_exists='replace', index=False, chunksize=10000)
+            print(f"  Enviando {len(df)} registros para a tabela '{esquema}.{nome_tabela}'...")
+            df.to_sql(name=nome_tabela, con=engine, schema=esquema, if_exists='replace', index=False, chunksize=10000)
             
             end_time_tabela = time.time()
-            print(f"  ✅ Tabela '{nome_tabela_lower}' populada com sucesso em {end_time_tabela - start_time_tabela:.2f} segundos.")
-
+            print(f"  ✅ Tabela populada com sucesso em {end_time_tabela - start_time_tabela:.2f} segundos.")
         except Exception as e:
             print(f"  ❌ ERRO ao processar o arquivo {arquivo}: {e}")
-            import traceback
-            traceback.print_exc()
 
     try:
         print("\n--- Criando tabela 'dim_tempo' a partir de 'fato_saldos' ---")
         with engine.connect() as connection:
-            trans = connection.begin()
-            connection.execute("DROP TABLE IF EXISTS dim_tempo;")
-            # <<< CORREÇÃO: Nomes de coluna em minúsculas >>>
-            query = """
-            CREATE TABLE dim_tempo AS
+            connection.execute(text("DROP TABLE IF EXISTS public.dim_tempo;"))
+            query = text("""
+            CREATE TABLE public.dim_tempo AS
             SELECT DISTINCT coexercicio, inmes,
                 CASE inmes
                     WHEN 1 THEN 'Janeiro' WHEN 2 THEN 'Fevereiro' WHEN 3 THEN 'Março'
@@ -150,11 +138,11 @@ def main():
                     WHEN 7 THEN 'Julho' WHEN 8 THEN 'Agosto' WHEN 9 THEN 'Setembro'
                     WHEN 10 THEN 'Outubro' WHEN 11 THEN 'Novembro' WHEN 12 THEN 'Dezembro'
                 END as nome_mes
-            FROM fato_saldos ORDER BY coexercicio, inmes;
-            """
+            FROM public.fato_saldos ORDER BY coexercicio, inmes;
+            """)
             connection.execute(query)
-            trans.commit()
-            print("  ✅ Tabela 'dim_tempo' criada com sucesso.")
+            connection.commit()
+            print("  ✅ Tabela 'public.dim_tempo' criada com sucesso.")
     except Exception as e:
         print(f"  ❌ ERRO ao criar 'dim_tempo': {e}")
 
@@ -165,10 +153,4 @@ def main():
     print("="*60)
 
 if __name__ == '__main__':
-    try:
-        import sqlalchemy
-    except ImportError:
-        print("Instalando biblioteca SQLAlchemy necessária...")
-        import subprocess
-        subprocess.check_call(['pip', 'install', 'sqlalchemy'])
     main()
