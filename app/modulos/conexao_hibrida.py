@@ -20,18 +20,11 @@ def adaptar_query(query: str) -> str:
     """
     Adapta a query para o ambiente de banco de dados correto.
     - Remove prefixos de schema para PostgreSQL.
-    - Converte identificadores para minúsculas para PostgreSQL.
+    - Troca '?' por '%s' para PostgreSQL.
     """
     if get_db_environment() == 'postgres':
-        # Remove prefixos e converte para minúsculas para compatibilidade com Postgres
         query = query.replace('dimensoes.', '').replace('lancamentos_db.', '')
-        # Esta é uma substituição simples. O ideal seria um parser, mas para este caso deve funcionar.
-        # Vamos converter tudo que parece um nome de coluna/tabela para minúsculas.
-        import re
-        # Encontra palavras que são prováveis identificadores (ex: fs.COLUNA, tabela, "COLUNA")
-        # e as converte para minúsculas.
-        query = re.sub(r'([a-zA-Z_][a-zA-Z0-9_]*\.)?([a-zA-Z_][a-zA-Z0-9_]+)', lambda m: m.group(0).lower(), query)
-
+        query = query.replace('?', '%s')
     return query
 
 class ConexaoBanco:
@@ -47,6 +40,11 @@ class ConexaoBanco:
                 database_url = os.environ.get('DATABASE_URL')
                 if not database_url:
                     raise ConnectionError("Variável de ambiente DATABASE_URL não encontrada.")
+                
+                # Garante que a URL está no formato correto para psycopg2
+                if database_url.startswith("postgres://"):
+                    database_url = database_url.replace("postgres://", "postgresql://", 1)
+                    
                 self.conn = psycopg2.connect(database_url)
             except Exception as e:
                 print(f"Erro fatal ao conectar ao PostgreSQL: {e}")

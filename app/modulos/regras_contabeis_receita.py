@@ -37,10 +37,11 @@ REGRAS_CONTAS = {
     }
 }
 
+# <<< CORREÇÃO: campo_filtro também em minúsculas >>>
 FILTROS_RELATORIO_ESPECIAIS = {
     'tributarias': {
         'descricao': 'Receitas Tributárias',
-        'campo_filtro': 'cofontereceita', # O código de rota converte para minúsculas
+        'campo_filtro': 'cofontereceita',
         'valores': ['11', '71']
     },
     'contribuicoes': {
@@ -48,6 +49,7 @@ FILTROS_RELATORIO_ESPECIAIS = {
         'campo_filtro': 'cofontereceita',
         'valores': ['12', '72']
     },
+    # ... (restante dos filtros permanecem iguais, pois já usavam minúsculas)
     'patrimonial': {
         'descricao': 'Receita Patrimonial',
         'campo_filtro': 'cofontereceita',
@@ -99,6 +101,7 @@ FILTROS_RELATORIO_ESPECIAIS = {
         'valores': ['24']
     }
 }
+
 
 def get_filtro_conta(tipo_conta):
     """Retorna o filtro SQL para um tipo específico de conta"""

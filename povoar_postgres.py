@@ -37,15 +37,19 @@ def ler_arquivo(caminho_completo):
         return pd.read_excel(caminho_completo, engine='openpyxl')
     elif caminho_completo.endswith('.csv'):
         print(f"  Lendo CSV: {os.path.basename(caminho_completo)}...")
-        encoding = detectar_encoding(caminho_completo)
-        print(f"    - Encoding detectado: {encoding}")
-        return pd.read_csv(caminho_completo, encoding=encoding, on_bad_lines='skip', sep=';')
+        # <<< CORREÇÃO: Tentar múltiplos separadores >>>
+        try:
+            encoding = detectar_encoding(caminho_completo)
+            print(f"    - Encoding detectado: {encoding}")
+            return pd.read_csv(caminho_completo, encoding=encoding, on_bad_lines='skip', sep=';')
+        except Exception:
+             return pd.read_csv(caminho_completo, encoding=encoding, on_bad_lines='skip', sep=',')
     return None
 
 def processar_dataframe_especial(df, nome_tabela):
     """Aplica transformações especiais para as tabelas de fatos."""
-    # Primeiro, padroniza TODOS os nomes de colunas para minúsculas
-    df.columns = [str(col).lower() for col in df.columns]
+    # <<< CORREÇÃO: Padroniza TODOS os nomes de colunas para minúsculas >>>
+    df.columns = [str(col).lower().replace(' ', '_') for col in df.columns]
     print("    - Nomes de colunas padronizados para minúsculas.")
 
     if nome_tabela in ['fato_saldos', 'lancamentos']:
@@ -117,11 +121,14 @@ def main():
             
             df = processar_dataframe_especial(df, nome_tabela)
             
-            print(f"  Enviando {len(df)} registros para a tabela '{nome_tabela}'...")
-            df.to_sql(name=nome_tabela, con=engine, if_exists='replace', index=False, chunksize=10000)
+            # <<< CORREÇÃO: Garante que o nome da tabela também está em minúsculas >>>
+            nome_tabela_lower = nome_tabela.lower()
+            
+            print(f"  Enviando {len(df)} registros para a tabela '{nome_tabela_lower}'...")
+            df.to_sql(name=nome_tabela_lower, con=engine, if_exists='replace', index=False, chunksize=10000)
             
             end_time_tabela = time.time()
-            print(f"  ✅ Tabela '{nome_tabela}' populada com sucesso em {end_time_tabela - start_time_tabela:.2f} segundos.")
+            print(f"  ✅ Tabela '{nome_tabela_lower}' populada com sucesso em {end_time_tabela - start_time_tabela:.2f} segundos.")
 
         except Exception as e:
             print(f"  ❌ ERRO ao processar o arquivo {arquivo}: {e}")
@@ -133,6 +140,7 @@ def main():
         with engine.connect() as connection:
             trans = connection.begin()
             connection.execute("DROP TABLE IF EXISTS dim_tempo;")
+            # <<< CORREÇÃO: Nomes de coluna em minúsculas >>>
             query = """
             CREATE TABLE dim_tempo AS
             SELECT DISTINCT coexercicio, inmes,

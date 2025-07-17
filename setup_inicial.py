@@ -14,43 +14,48 @@ def criar_tabelas_basicas():
     
     try:
         print("🔗 Conectando ao PostgreSQL...")
+        # Adicionado para compatibilidade com SQLAlchemy
+        if database_url.startswith("postgres://"):
+            database_url = database_url.replace("postgres://", "postgresql://", 1)
+        
         conn = psycopg2.connect(database_url)
         cursor = conn.cursor()
         
         print("🏗️  Criando tabelas básicas...")
         
-        # Tabela de saldos
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS fato_saldos (
-            id SERIAL PRIMARY KEY,
-            COEXERCICIO INTEGER,
-            INMES INTEGER,
-            CDORGAO TEXT,
-            DSORGAO TEXT,
-            CDUNIDADE TEXT,
-            DSUNIDADE TEXT,
-            VLSALDOANTERIOR DECIMAL,
-            VLORCAMENTO DECIMAL,
-            VLSALDOATUAL DECIMAL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        """)
-        
         # Tabela de tempo
+        # <<< CORREÇÃO: Adicionada a coluna 'fonte' >>>
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS dim_tempo (
             id SERIAL PRIMARY KEY,
-            COEXERCICIO INTEGER,
-            INMES INTEGER,
-            NOME_MES TEXT,
+            coexercicio INTEGER,
+            inmes INTEGER,
+            nome_mes TEXT,
             fonte TEXT DEFAULT 'saldos',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         """)
         
+        # Tabela de saldos
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS fato_saldos (
+            id SERIAL PRIMARY KEY,
+            coexercicio INTEGER,
+            inmes INTEGER,
+            cdorgao TEXT,
+            dsorgao TEXT,
+            cdunidade TEXT,
+            dsunidade TEXT,
+            vlsaldoanterior DECIMAL,
+            vlorcamento DECIMAL,
+            vlsaldoatual DECIMAL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
+
         # Inserir dados de exemplo básicos
         cursor.execute("""
-        INSERT INTO dim_tempo (COEXERCICIO, INMES, NOME_MES, fonte) 
+        INSERT INTO dim_tempo (coexercicio, inmes, nome_mes, fonte) 
         VALUES 
             (2024, 6, 'Junho', 'exemplo'),
             (2025, 6, 'Junho', 'exemplo')
@@ -58,7 +63,7 @@ def criar_tabelas_basicas():
         """)
         
         cursor.execute("""
-        INSERT INTO fato_saldos (COEXERCICIO, INMES, CDORGAO, DSORGAO, CDUNIDADE, DSUNIDADE, VLSALDOANTERIOR, VLORCAMENTO, VLSALDOATUAL) 
+        INSERT INTO fato_saldos (coexercicio, inmes, cdorgao, dsorgao, cdunidade, dsunidade, vlsaldoanterior, vlorcamento, vlsaldoatual) 
         VALUES 
             (2025, 6, '0101', 'Câmara Municipal', '010101', 'Câmara Municipal - Principal', 1000000, 1200000, 1100000),
             (2025, 6, '0201', 'Prefeitura Municipal', '020101', 'Prefeitura Municipal - Principal', 5000000, 6000000, 5500000)

@@ -9,13 +9,11 @@ import pandas as pd
 from io import BytesIO
 from datetime import datetime
 import traceback
-
-# --- CORREÇÃO: Importações que faltavam foram adicionadas ---
 import psycopg2
 import psycopg2.extras
-from app.modulos.conexao_hibrida import ConexaoBanco, adaptar_query, get_db_environment
-# --- FIM DA CORREÇÃO ---
+import sqlite3
 
+from app.modulos.conexao_hibrida import ConexaoBanco, adaptar_query, get_db_environment
 from app.modulos.periodo import obter_periodo_referencia
 from app.modulos.formatacao import formatar_moeda, formatar_percentual
 from app.modulos.regras_contabeis_receita import get_filtro_conta, FILTROS_RELATORIO_ESPECIAIS
@@ -25,8 +23,53 @@ from app.modulos.cards_unidades_gestoras import gerar_cards_unidades
 from app.modulos.relatorio_receita_fonte import gerar_relatorio_receita_fonte
 from app.modulos.modal_lancamentos import processar_requisicao_lancamentos, gerar_botao_lancamentos
 
-# Cria o Blueprint
 relatorios_bp = Blueprint('relatorios', __name__, url_prefix='/relatorios')
+
+
+# <<< CORREÇÃO: Funções movidas para o topo, antes de serem chamadas >>>
+def gerar_resumo_executivo(dados):
+    if not dados or len(dados) <= 1: return None
+    try:
+        total_geral = next((item for item in dados if item['id'] == 'total'), None)
+        if not total_geral: return None
+        resumo = {'total_geral': {'receita_2025': total_geral.get('receita_atual', 0), 'receita_2024': total_geral.get('receita_anterior', 0), 'variacao_abs': total_geral.get('variacao_absoluta', 0), 'variacao_pct': total_geral.get('variacao_percentual', 0)}}
+        categorias = [d for d in dados if d.get('nivel') == 0]
+        if categorias:
+            cat_principal = max(categorias, key=lambda x: x.get('receita_atual', 0))
+            resumo['categoria_principal'] = {'descricao': cat_principal['descricao'], 'valor': cat_principal['receita_atual']}
+        return resumo
+    except Exception as e:
+        print(f"Erro ao gerar resumo executivo: {e}")
+        return None
+
+def exportar_excel_balanco(dados, periodo, coug_selecionada, coug_manager, filtro_relatorio_key=None):
+    rows = []
+    for item in dados:
+        if item.get('nivel', -2) >= -1:
+            indent = '    ' * max(0, item.get('nivel', 0))
+            row = {
+                'Código': item.get('codigo', ''), 'Descrição': indent + item.get('descricao', ''),
+                f'Previsão Inicial {periodo["ano"]}': item.get('previsao_inicial', 0), f'Previsão Atualizada {periodo["ano"]}': item.get('previsao_atualizada', 0),
+                f'Receita Realizada {periodo["mes"]}/{periodo["ano"]}': item.get('receita_atual', 0), f'Receita Realizada {periodo["mes"]}/{periodo["ano"]-1}': item.get('receita_anterior', 0),
+                'Variação Absoluta': item.get('variacao_absoluta', 0), 'Variação %': item.get('variacao_percentual', 0) / 100
+            }
+            rows.append(row)
+    df = pd.DataFrame(rows)
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='Balanço Orçamentário', index=False)
+        worksheet = writer.sheets['Balanço Orçamentário']
+        worksheet.column_dimensions['B'].width = 60
+        for col_letter in ['C', 'D', 'E', 'F', 'G']:
+            worksheet.column_dimensions[col_letter].width = 22
+            for cell in worksheet[col_letter][1:]: cell.number_format = 'R$ #,##0.00'
+        worksheet.column_dimensions['H'].width = 15
+        for cell in worksheet['H'][1:]: cell.number_format = '0.00%'
+    output.seek(0)
+    sufixo_coug = coug_manager.get_sufixo_arquivo(coug_selecionada)
+    sufixo_filtro = f"_{filtro_relatorio_key}" if filtro_relatorio_key else ""
+    filename = f'balanco_orcamentario_receita{sufixo_coug}{sufixo_filtro}_{periodo["ano"]}_{periodo["mes"]:02d}.xlsx'
+    return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name=filename)
 
 
 class ProcessadorDadosReceita:
@@ -37,6 +80,7 @@ class ProcessadorDadosReceita:
         if get_db_environment() == 'postgres':
             self.cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         else:
+            self.conn.row_factory = sqlite3.Row
             self.cursor = conn.cursor()
         self.coug_manager = COUGManager(conn)
     
@@ -57,7 +101,7 @@ class ProcessadorDadosReceita:
         filtro_dinamico = ""
         if filtro_relatorio_key and filtro_relatorio_key in FILTROS_RELATORIO_ESPECIAIS:
             regra = FILTROS_RELATORIO_ESPECIAIS[filtro_relatorio_key]
-            campo = regra['campo_filtro'].lower()
+            campo = regra['campo_filtro']
             valores_str = ", ".join([f"'{v}'" for v in regra['valores']])
             filtro_dinamico = f"AND fs.{campo} IN ({valores_str})"
         
@@ -104,8 +148,7 @@ class ProcessadorDadosReceita:
             return self._dados_exemplo()
         hierarquia = {}
         for row_dict in resultados:
-            row_lower = {str(k).lower(): v for k, v in dict(row_dict).items()}
-            self._adicionar_na_hierarquia(hierarquia, row_lower)
+            self._adicionar_na_hierarquia(hierarquia, dict(row_dict))
         dados_processados = []
         self._hierarquia_para_lista(hierarquia, dados_processados)
         total_geral = self._calcular_total_geral(dados_processados)
@@ -148,7 +191,7 @@ class ProcessadorDadosReceita:
     
     def _calcular_variacoes(self, item):
         item['variacao_absoluta'] = item['receita_atual'] - item['receita_anterior']
-        item['variacao_percentual'] = (item['variacao_absoluta'] / item['receita_anterior'] * 100) if item['receita_anterior'] != 0 else 0
+        item['variacao_percentual'] = (item['variacao_absoluta'] / abs(item['receita_anterior']) * 100) if item['receita_anterior'] else (100.0 if item['receita_atual'] else 0.0)
     
     def _calcular_total_geral(self, dados):
         total = {'id': 'total', 'codigo': '', 'descricao': 'TOTAL GERAL', 'nivel': -1, 'classes': 'nivel--1', **self._valores_zerados()}
@@ -161,49 +204,6 @@ class ProcessadorDadosReceita:
     def _valores_zerados(self): return {'previsao_inicial': 0, 'previsao_atualizada': 0, 'receita_atual': 0, 'receita_anterior': 0}
     def _dados_exemplo(self): return [{'id': 'total', 'codigo': '', 'descricao': 'Nenhum dado encontrado', 'nivel': -1, 'classes': 'nivel--1', 'previsao_inicial': 0, 'previsao_atualizada': 0, 'receita_atual': 0, 'receita_anterior': 0, 'variacao_absoluta': 0, 'variacao_percentual': 0, 'tem_lancamentos': False, 'params_lancamentos': {}}]
 
-def gerar_resumo_executivo(dados):
-    if not dados or len(dados) <= 1: return None
-    try:
-        total_geral = next((item for item in dados if item['id'] == 'total'), None)
-        if not total_geral: return None
-        resumo = {'total_geral': {'receita_2025': total_geral.get('receita_atual', 0), 'receita_2024': total_geral.get('receita_anterior', 0), 'variacao_abs': total_geral.get('variacao_absoluta', 0), 'variacao_pct': total_geral.get('variacao_percentual', 0)}}
-        categorias = [d for d in dados if d.get('nivel') == 0]
-        if categorias:
-            cat_principal = max(categorias, key=lambda x: x.get('receita_atual', 0))
-            resumo['categoria_principal'] = {'descricao': cat_principal['descricao'], 'valor': cat_principal['receita_atual']}
-        return resumo
-    except Exception as e:
-        print(f"Erro ao gerar resumo executivo: {e}")
-        return None
-
-def exportar_excel_balanco(dados, periodo, coug_selecionada, coug_manager, filtro_relatorio_key=None):
-    rows = []
-    for item in dados:
-        if item.get('nivel', -2) >= -1:
-            indent = '    ' * max(0, item.get('nivel', 0))
-            row = {
-                'Código': item.get('codigo', ''), 'Descrição': indent + item.get('descricao', ''),
-                f'Previsão Inicial {periodo["ano"]}': item.get('previsao_inicial', 0), f'Previsão Atualizada {periodo["ano"]}': item.get('previsao_atualizada', 0),
-                f'Receita Realizada {periodo["mes"]}/{periodo["ano"]}': item.get('receita_atual', 0), f'Receita Realizada {periodo["mes"]}/{periodo["ano"]-1}': item.get('receita_anterior', 0),
-                'Variação Absoluta': item.get('variacao_absoluta', 0), 'Variação %': item.get('variacao_percentual', 0) / 100
-            }
-            rows.append(row)
-    df = pd.DataFrame(rows)
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, sheet_name='Balanço Orçamentário', index=False)
-        worksheet = writer.sheets['Balanço Orçamentário']
-        worksheet.column_dimensions['B'].width = 60
-        for col_letter in ['C', 'D', 'E', 'F', 'G']:
-            worksheet.column_dimensions[col_letter].width = 22
-            for cell in worksheet[col_letter][1:]: cell.number_format = 'R$ #,##0.00'
-        worksheet.column_dimensions['H'].width = 15
-        for cell in worksheet['H'][1:]: cell.number_format = '0.00%'
-    output.seek(0)
-    sufixo_coug = coug_manager.get_sufixo_arquivo(coug_selecionada)
-    sufixo_filtro = f"_{filtro_relatorio_key}" if filtro_relatorio_key else ""
-    filename = f'balanco_orcamentario_receita{sufixo_coug}{sufixo_filtro}_{periodo["ano"]}_{periodo["mes"]:02d}.xlsx'
-    return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name=filename)
 
 @relatorios_bp.route('/')
 def index():
@@ -231,7 +231,7 @@ def balanco_orcamentario_receita():
             dados_cards = gerar_cards_unidades(conn, periodo['ano'], periodo['mes'], filtro_relatorio_key)
             resumo = gerar_resumo_executivo(dados)
             cougs = coug_manager.listar_cougs_com_movimento([get_filtro_conta('RECEITA_LIQUIDA')])
-            nome_coug = coug_manager.get_nome_coug(coug_selecionada) if coug_selecionada else ""
+            nome_coug = coug_manager.get_nome_coug(coug_selecionada) if coug_selecionada else "Consolidado"
 
             chart_data_categorias = [{"label": item['descricao'], "value": item['receita_atual']} for item in dados if item['nivel'] == 0 and item.get('receita_atual', 0) > 0]
             chart_data_origens = [{"label": item['descricao'], "value": item['receita_atual']} for item in dados if item['nivel'] == 1 and item.get('receita_atual', 0) > 0]
@@ -257,12 +257,13 @@ def balanco_orcamentario_receita():
         traceback.print_exc()
         return render_template('erro.html', mensagem=f"Erro inesperado ao gerar relatório: {e}")
 
-@relatorios_bp.route('/api/lancamentos', methods=['GET', 'POST'])
+# ... (Restante do arquivo permanece igual)
+
+@relatorios_bp.route('/api/lancamentos', methods=['GET'])
 def api_lancamentos():
     try:
         with ConexaoBanco() as conn:
-            args = request.args if request.method == 'GET' else request.get_json()
-            resultado = processar_requisicao_lancamentos(conn, args)
+            resultado = processar_requisicao_lancamentos(conn, request.args)
             if 'erro' in resultado:
                 return jsonify(resultado), 400
             return jsonify(resultado)
@@ -277,8 +278,8 @@ def api_relatorio_receita_fonte():
             resultado = gerar_relatorio_receita_fonte(
                 conn=conn,
                 tipo=request.args.get('tipo', 'receita'),
-                ano=request.args.get('ano', type=int),
-                mes=request.args.get('mes', type=int),
+                ano=int(request.args.get('ano')),
+                mes=int(request.args.get('mes')),
                 coug=request.args.get('coug') or None,
                 filtro_relatorio_key=request.args.get('filtro')
             )
@@ -291,12 +292,12 @@ def api_relatorio_receita_fonte():
 def api_lancamentos_receita_fonte():
     try:
         with ConexaoBanco() as conn:
-            ano = request.args.get('ano', type=int)
-            mes = request.args.get('mes', type=int)
+            ano = int(request.args.get('ano'))
+            mes = int(request.args.get('mes'))
             coug = request.args.get('coug')
             coalinea = request.args.get('coalinea')
             cofonte = request.args.get('cofonte')
-            valor_relatorio = request.args.get('valor_relatorio', type=float, default=0.0)
+            valor_relatorio = float(request.args.get('valor_relatorio', 0.0))
 
             if not all([ano, mes, coug, coalinea]):
                 return jsonify({"erro": "Parâmetros obrigatórios faltando (ano, mes, coug, coalinea)"}), 400
@@ -304,34 +305,35 @@ def api_lancamentos_receita_fonte():
             query_params = [ano, mes, coug, coalinea]
             query_sql = f"""
                 SELECT 
-                    COCONTACONTABIL, COUG, NUDOCUMENTO, COEVENTO, INDEBITOCREDITO, VALANCAMENTO
+                    cocontacontabil, coug, nudocumento, coevento, indebitocredito, valancamento
                 FROM lancamentos_db.lancamentos
-                WHERE COEXERCICIO = ?
-                  AND INMES <= ?
-                  AND COUGCONTAB = ?
-                  AND COALINEA = ?
+                WHERE coexercicio = ?
+                  AND inmes <= ?
+                  AND cougcontab = ?
+                  AND coalinea = ?
                   AND ({get_filtro_conta('RECEITA_LIQUIDA')})
             """
             
             if cofonte:
-                query_sql += " AND COFONTE = ?"
+                query_sql += " AND cofonte = ?"
                 query_params.append(cofonte)
             
-            query_sql += " ORDER BY NUDOCUMENTO, COEVENTO"
+            query_sql += " ORDER BY nudocumento, coevento"
             
             query_adaptada = adaptar_query(query_sql)
             
+            # Use a factory para obter dicionários
+            conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute(query_adaptada, query_params)
             
-            lancamentos = []
-            for row in cursor.fetchall():
-                lancamentos.append({str(k).lower(): v for k, v in dict(row).items()})
+            lancamentos = [dict(row) for row in cursor.fetchall()]
 
             total_liquido = sum(l['valancamento'] if l['indebitocredito'] == 'C' else -l['valancamento'] for l in lancamentos)
 
+            html = ""
             if lancamentos:
-                html = f"""
+                html += f"""
                 <div class="modal-info-container">
                     <div class="valor-apurado-info">
                         <strong>Valor Apurado no Relatório:</strong> {formatar_moeda(valor_relatorio)}
