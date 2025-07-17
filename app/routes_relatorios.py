@@ -4,7 +4,7 @@ Rotas para os relatórios do sistema orçamentário
 Versão com Filtro Dinâmico, Comparativo Mensal e Cards de Unidades Gestoras
 """
 
-from flask import Blueprint, render_template, request, send_file, jsonify
+from flask import Blueprint, render_template, request, send_file, jsonify, Response
 import sqlite3
 import os
 from datetime import datetime
@@ -21,6 +21,7 @@ from app.modulos.comparativo_mensal import gerar_comparativo_mensal
 from app.modulos.cards_unidades_gestoras import gerar_cards_unidades
 from app.modulos.relatorio_receita_fonte import gerar_relatorio_receita_fonte
 from app.modulos.modal_lancamentos import processar_requisicao_lancamentos, gerar_botao_lancamentos
+from app.modulos.exportador_html import exportar_relatorio_html
 
 # Cria o Blueprint
 relatorios_bp = Blueprint('relatorios', __name__, url_prefix='/relatorios')
@@ -624,6 +625,99 @@ def balanco_orcamentario_receita():
                 filtro_relatorio_key
             )
         
+        # Se formato HTML download
+        if formato == 'html_download':
+            # Gera componentes adicionais
+            comparativo_mensal = gerar_comparativo_mensal(
+                conn,
+                periodo['ano'],
+                coug_selecionada,
+                filtro_relatorio_key
+            )
+            
+            dados_cards = gerar_cards_unidades(
+                conn,
+                periodo['ano'],
+                periodo['mes'],
+                filtro_relatorio_key
+            )
+            
+            # Gera resumo executivo
+            resumo = gerar_resumo_executivo(dados)
+            
+            # Lista COUGs disponíveis
+            filtros_contas_receita = [get_filtro_conta('RECEITA_LIQUIDA')]
+            cougs = coug_manager.listar_cougs_com_movimento(filtros_contas_receita)
+            
+            # Obtém nome completo da COUG selecionada
+            nome_coug = ""
+            if coug_selecionada:
+                for coug in cougs:
+                    if coug['codigo'] == coug_selecionada:
+                        nome_coug = coug['descricao_completa']
+                        break
+            
+            # Prepara dados para gráficos
+            chart_data_categorias = [
+                {"label": item['descricao'], "value": item['receita_atual']}
+                for item in dados 
+                if item['nivel'] == 0 and item.get('receita_atual', 0) > 0
+            ]
+            
+            chart_data_origens = [
+                {"label": item['descricao'], "value": item['receita_atual']}
+                for item in dados 
+                if item['nivel'] == 1 and item.get('receita_atual', 0) > 0
+            ]
+            
+            # Determina títulos e descrições baseados no filtro
+            titulo_comparativo = "Comparativo Mensal Acumulado - Todas as Receitas"
+            filtro_descricao = "Todas as Receitas"
+            
+            if filtro_relatorio_key and filtro_relatorio_key in FILTROS_RELATORIO_ESPECIAIS:
+                descricao = FILTROS_RELATORIO_ESPECIAIS[filtro_relatorio_key]['descricao']
+                titulo_comparativo = f"Comparativo Mensal Acumulado - {descricao}"
+                filtro_descricao = descricao
+            
+            # Renderiza o template
+            html_content = render_template(
+                'relatorios_orcamentarios/balanco_orcamentario_receita.html',
+                dados=dados,
+                periodo=periodo,
+                cougs=cougs,
+                coug_selecionada=coug_selecionada,
+                nome_coug=nome_coug,
+                chart_data_categorias=chart_data_categorias,
+                chart_data_origens=chart_data_origens,
+                resumo_executivo=resumo,
+                data_geracao=datetime.now().strftime('%d/%m/%Y %H:%M'),
+                filtro_ativo=filtro_relatorio_key,
+                filtro_descricao=filtro_descricao,
+                comparativo_mensal=comparativo_mensal,
+                titulo_comparativo=titulo_comparativo,
+                dados_cards=dados_cards,
+                gerar_botao_lancamentos=gerar_botao_lancamentos
+            )
+            
+            conn.close()
+            
+            # Usa o exportador HTML
+            titulo_completo = f"Balanço Orçamentário da Receita - {nome_coug if coug_selecionada else 'Consolidado'}"
+            
+            html_completo, nome_arquivo = exportar_relatorio_html(
+                html_content,
+                'balanco_orcamentario_receita',
+                titulo=titulo_completo,
+                periodo=periodo,
+                filtros={'coug': coug_selecionada, 'filtro': filtro_relatorio_key}
+            )
+            
+            # Retorna como download
+            response = Response(html_completo, mimetype='text/html')
+            response.headers['Content-Disposition'] = f'attachment; filename="{nome_arquivo}"'
+            return response
+        
+        # Formato HTML normal (visualização)
         # Gera componentes adicionais
         comparativo_mensal = gerar_comparativo_mensal(
             conn,
@@ -728,63 +822,6 @@ def api_lancamentos():
         return jsonify({"erro": str(e)}), 500
 
 
-@relatorios_bp.route('/balanco-orcamentario-receita/lancamentos')
-def buscar_lancamentos():
-    """Mantém compatibilidade com a rota antiga - redireciona para a nova API"""
-    return api_lancamentos()
-
-
-@relatorios_bp.route('/api/relatorio-receita-fonte')
-def api_relatorio_receita_fonte():
-    """API para buscar dados do relatório por receita ou fonte"""
-    try:
-        # Obtém parâmetros
-        tipo = request.args.get('tipo', 'receita')  # 'receita' ou 'fonte'
-        ano = request.args.get('ano', type=int)
-        mes = request.args.get('mes', type=int)
-        coug = request.args.get('coug', '')
-        filtro = request.args.get('filtro', None)
-        
-        # Valida tipo
-        if tipo not in ['receita', 'fonte']:
-            return jsonify({"erro": "Tipo inválido. Use 'receita' ou 'fonte'"}), 400
-        
-        # Conecta ao banco
-        conn = ConexaoBanco.conectar_completo()
-        
-        # Gera o relatório
-        resultado = gerar_relatorio_receita_fonte(
-            conn=conn,
-            tipo=tipo,
-            ano=ano,
-            mes=mes,
-            coug=coug if coug else None,
-            filtro_relatorio_key=filtro
-        )
-        
-        conn.close()
-        
-        return jsonify(resultado)
-        
-    except Exception as e:
-        traceback.print_exc()
-        return jsonify({"erro": str(e)}), 500
-
-
-# FILTROS PARA TEMPLATES
-
-@relatorios_bp.app_template_filter('formatar_moeda')
-def filter_formatar_moeda(valor):
-    """Filtro para formatar valores monetários"""
-    return formatar_moeda(valor)
-
-
-@relatorios_bp.app_template_filter('formatar_percentual')
-def filter_formatar_percentual(valor):
-    """Filtro para formatar percentuais"""
-    # O valor já vem em percentual, só precisa formatar
-    return formatar_percentual(valor/100 if valor else 0, casas_decimais=2)
-
 @relatorios_bp.route('/api/lancamentos-receita-fonte')
 def api_lancamentos_receita_fonte():
     """API para buscar lançamentos do relatório receita/fonte"""
@@ -850,7 +887,7 @@ def api_lancamentos_receita_fonte():
         # Formata dados
         from app.modulos.formatacao import formatar_moeda
         
-        # Gera HTML da tabela - CORRIGIDO SEM DUPLICAÇÃO
+        # Gera HTML da tabela
         if lancamentos:
             html = f"""
             <div class="modal-info-container">
@@ -912,5 +949,95 @@ def api_lancamentos_receita_fonte():
         
     except Exception as e:
         import traceback
+        traceback.print_exc()
+        return jsonify({"erro": str(e)}), 500
+
+
+# FILTROS PARA TEMPLATES
+
+@relatorios_bp.app_template_filter('formatar_moeda')
+def filter_formatar_moeda(valor):
+    """Filtro para formatar valores monetários"""
+    return formatar_moeda(valor)
+
+
+@relatorios_bp.app_template_filter('formatar_percentual')
+def filter_formatar_percentual(valor):
+    """Filtro para formatar percentuais"""
+    # O valor já vem em percentual, só precisa formatar
+    return formatar_percentual(valor/100 if valor else 0, casas_decimais=2)
+
+
+# ROTA PARA DOWNLOAD HTML GENÉRICO
+
+@relatorios_bp.route('/download-html/<tipo_relatorio>')
+def download_html_generico(tipo_relatorio):
+    """Rota genérica para download de relatórios em HTML"""
+    try:
+        # Mapeia tipos de relatório para suas respectivas funções
+        mapa_relatorios = {
+            'balanco_orcamentario': 'balanco_orcamentario_receita',
+            'inconsistencias': 'relatorio_inconsistencias',
+            # Adicione outros relatórios aqui conforme necessário
+        }
+        
+        if tipo_relatorio not in mapa_relatorios:
+            return jsonify({"erro": "Tipo de relatório inválido"}), 400
+        
+        # Adiciona formato=html_download aos parâmetros
+        args = request.args.to_dict()
+        args['formato'] = 'html_download'
+        
+        # Redireciona para a rota específica com os parâmetros
+        from flask import redirect, url_for
+        
+        if tipo_relatorio == 'balanco_orcamentario':
+            return redirect(url_for('relatorios.balanco_orcamentario_receita', **args))
+        elif tipo_relatorio == 'inconsistencias':
+            return redirect(url_for('inconsistencias.relatorio_inconsistencias', **args))
+        
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
+
+
+@relatorios_bp.route('/balanco-orcamentario-receita/lancamentos')
+def buscar_lancamentos():
+    """Mantém compatibilidade com a rota antiga - redireciona para a nova API"""
+    return api_lancamentos()
+
+
+@relatorios_bp.route('/api/relatorio-receita-fonte')
+def api_relatorio_receita_fonte():
+    """API para buscar dados do relatório por receita ou fonte"""
+    try:
+        # Obtém parâmetros
+        tipo = request.args.get('tipo', 'receita')  # 'receita' ou 'fonte'
+        ano = request.args.get('ano', type=int)
+        mes = request.args.get('mes', type=int)
+        coug = request.args.get('coug', '')
+        filtro = request.args.get('filtro', None)
+        
+        # Valida tipo
+        if tipo not in ['receita', 'fonte']:
+            return jsonify({"erro": "Tipo inválido. Use 'receita' ou 'fonte'"}), 400
+        
+        # Conecta ao banco
+        conn = ConexaoBanco.conectar_completo()
+        
+        # Gera o relatório
+        resultado = gerar_relatorio_receita_fonte(
+            conn=conn,
+            tipo=tipo,
+            ano=ano,
+            mes=mes,
+            coug=coug if coug else None,
+            filtro_relatorio_key=filtro
+        )
+        
+        conn.close()
+        
+        return jsonify(resultado)
+        
+    except Exception as e:
         traceback.print_exc()
         return jsonify({"erro": str(e)}), 500

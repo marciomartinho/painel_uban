@@ -1,0 +1,137 @@
+/* app/static/css/download-button.css */
+
+/* Botão de Download HTML - Estilo Melhorado */
+.btn-download-html {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.btn-download-html:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+
+.btn-download-html:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 5px rgba(102, 126, 234, 0.4);
+}
+
+/* Desabilita o botão durante o processo */
+.btn-download-html:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Feedback Visual de Sucesso/Erro */
+.download-feedback {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 25px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 10000;
+    animation: slideIn 0.3s ease-out;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.download-feedback.success {
+    background: #28a745;
+    color: white;
+}
+
+.download-feedback.error {
+    background: #dc3545;
+    color: white;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+/* Classes para elementos que devem ser removidos na exportação */
+.no-export {
+    /* Será removido durante a exportação */
+}
+
+.no-print {
+    /* Será removido durante impressão e exportação */
+}
+
+/* Marca para documento exportado */
+.documento-exportado {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    padding: 20px;
+    margin-bottom: 30px;
+    border-radius: 8px;
+}
+
+.documento-exportado h1 {
+    color: #212529;
+    margin-bottom: 10px;
+}
+
+.documento-exportado .info {
+    color: #6c757d;
+    font-size: 14px;
+}
+
+/* Remove qualquer loading visível */
+.loading,
+.spinner,
+.loading-download,
+[class*="loading"] {
+    display: none !important;
+}
+
+/* Estilos para impressão */
+@media print {
+    .no-export,
+    .no-print,
+    .btn,
+    button,
+    select,
+    input,
+    .action-bar,
+    .filter-section,
+    .modal,
+    .loading {
+        display: none !important;
+    }
+    
+    body {
+        padding: 0;
+        margin: 0;
+    }
+    
+    .page-break {
+        page-break-before: always;
+    }
+}

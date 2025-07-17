@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Balanço Orçamentário da Receita - {{ 'Consolidado' if not coug_selecionada else nome_coug }}</title>
-    
+     <link rel="stylesheet" href="{{ url_for('static', filename='css/download-button.css') }}">
     <style>
         /* Reset e Variáveis CSS */
         * {
@@ -824,6 +824,9 @@
                     <a href="{{ url_for('relatorios.balanco_orcamentario_receita', formato='excel', coug=coug_selecionada, filtro=filtro_ativo or '') }}" class="btn btn-success">
                         <span>📊</span> Exportar Excel
                     </a>
+                    <button class="btn btn-success" onclick="DownloadHTML.baixarBalancoOrcamentario()">
+                        <span>💾</span> Baixar HTML
+                    </button>
                 </div>
                 <select id="seletor-coug" class="modern-select" onchange="mudarCOUG(this.value)">
                     <option value="">📊 DADOS CONSOLIDADOS</option>
@@ -1062,6 +1065,7 @@
     {% include 'componentes/modal_lancamentos.html' %}
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='js/download-html.js') }}"></script>
     <script>
         // Configurações globais
         window.periodo = {{ periodo|tojson|safe }};
