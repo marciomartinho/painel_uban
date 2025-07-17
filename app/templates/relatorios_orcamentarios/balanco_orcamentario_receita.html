@@ -812,7 +812,7 @@
             </div>
         </header>
 
-        <div class="action-bar">
+        <div class="action-bar no-export">
             <div class="action-bar-content">
                 <div class="action-buttons">
                     <a href="{{ url_for('relatorios.index') }}" class="btn btn-secondary">
@@ -824,7 +824,11 @@
                     <a href="{{ url_for('relatorios.balanco_orcamentario_receita', formato='excel', coug=coug_selecionada, filtro=filtro_ativo or '') }}" class="btn btn-success">
                         <span>📊</span> Exportar Excel
                     </a>
-                    <button class="btn btn-success" onclick="DownloadHTML.baixarBalancoOrcamentario()">
+                    <button class="btn btn-success"
+                            onclick="DownloadHTML.baixarBalancoOrcamentario({
+                                cougNome: '{{ nome_coug|e }}',
+                                filtroDescricao: '{{ filtro_descricao|e }}'
+                            })">
                         <span>💾</span> Baixar HTML
                     </button>
                 </div>
@@ -839,7 +843,7 @@
             </div>
         </div>
 
-        <div class="filter-section">
+        <div class="filter-section no-export">
             <div class="filter-content">
                 <a href="{{ url_for('relatorios.balanco_orcamentario_receita', coug=coug_selecionada) }}" 
                    class="filter-btn {% if not filtro_ativo %}active{% endif %}">Todas as Receitas</a>
@@ -870,190 +874,194 @@
             </div>
         </div>
 
-        <div class="info-card">
-            <div class="info-card-text">
-                <span><strong>Período:</strong> {{ periodo.periodo_completo }}</span>
-                <span><strong>Gerado em:</strong> {{ data_geracao }}</span>
-                {% if coug_selecionada and nome_coug %}
-                <span><strong>Unidade:</strong> {{ nome_coug }}</span>
+        <div id="area-exportavel">
+            <div class="info-card">
+                <div class="info-card-text">
+                    <span><strong>Período:</strong> {{ periodo.periodo_completo }}</span>
+                    <span><strong>Gerado em:</strong> {{ data_geracao }}</span>
+                    {% if coug_selecionada and nome_coug %}
+                    <span><strong>Unidade:</strong> {{ nome_coug }}</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <section class="table-section" id="export-tabela-principal">
+                <div class="table-wrapper">
+                    {% if dados and dados|length > 1 %}
+                    <table class="modern-table">
+                        <thead>
+                            <tr>
+                                <th>RECEITAS</th>
+                                <th>PREVISÃO INICIAL<br>{{ periodo.ano }}</th>
+                                <th>PREVISÃO ATUALIZADA<br>{{ periodo.ano }}</th>
+                                <th>REALIZADA<br>{{ "%02d"|format(periodo.mes) }}/{{ periodo.ano }}</th>
+                                <th>REALIZADA<br>{{ "%02d"|format(periodo.mes) }}/{{ periodo.ano - 1 }}</th>
+                                <th>
+                                    <div class="variacao-header">
+                                        <span>VARIAÇÃO</span>
+                                        <div class="variacao-subheader">
+                                            <span>VALOR</span>
+                                            <span>%</span>
+                                        </div>
+                                    </div>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in dados %}
+                            <tr class="{{ item.classes }}" data-level="{{ item.nivel }}">
+                                <td>
+                                    {% if item.classes and item.classes.find('parent-row') != -1 and item.nivel > 0 %}
+                                    <span class="toggle-btn" data-state="collapsed">+</span>
+                                    {% endif %}
+                                    <span class="item-description">{{ item.descricao }}</span>
+                                    {% if item.nivel == 3 and item.tem_lancamentos and coug_selecionada %}
+                                        {{ gerar_botao_lancamentos(item.tem_lancamentos, coug_selecionada, item.params_lancamentos, item.nivel)|safe }}
+                                    {% endif %}
+                                </td>
+                                <td>{{ item.previsao_inicial|formatar_moeda }}</td>
+                                <td>{{ item.previsao_atualizada|formatar_moeda }}</td>
+                                <td>{{ item.receita_atual|formatar_moeda }}</td>
+                                <td>{{ item.receita_anterior|formatar_moeda }}</td>
+                                <td>
+                                    <div class="variacao-cells">
+                                        <span class="{% if item.variacao_absoluta >= 0 %}valor-positivo{% else %}valor-negativo{% endif %}">
+                                            {{ item.variacao_absoluta|formatar_moeda }}
+                                        </span>
+                                        <span class="{% if item.variacao_percentual >= 0 %}valor-positivo{% else %}valor-negativo{% endif %}">
+                                            {{ item.variacao_percentual|formatar_percentual }}
+                                        </span>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="empty-state">
+                        <h3>Nenhum dado encontrado</h3>
+                        <p>Verifique os filtros ou a disponibilidade de dados para o período.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </section>
+
+            <div class="content-section">
+                
+                {% if chart_data_categorias or chart_data_origens %}
+                <div class="modern-card" id="export-grafico-visual">
+                    <div class="card-header">
+                        <div class="card-icon">📊</div>
+                        <div class="card-title">
+                            <h2>Análise Visual das Receitas</h2>
+                            <p>Distribuição por categorias e origens</p>
+                        </div>
+                    </div>
+                    <div class="chart-controls">
+                        <button id="btn-cat" class="chart-btn active" onclick="updateChart('categorias')">Por Categorias</button>
+                        <button id="btn-ori" class="chart-btn" onclick="updateChart('origens')">Por Origens</button>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="receitaPieChart"></canvas>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if resumo_executivo %}
+                <div class="modern-card" id="export-resumo-executivo">
+                    <div class="card-header">
+                        <div class="card-icon">📈</div>
+                        <div class="card-title">
+                            <h2>Resumo Executivo</h2>
+                            <p>Principais indicadores do período</p>
+                        </div>
+                    </div>
+                    <div class="summary-grid">
+                        <div class="summary-card">
+                            <span class="summary-label">Receita Total {{ periodo.ano }}</span>
+                            <span class="summary-value">{{ resumo_executivo.total_geral.receita_2025 | formatar_moeda }}</span>
+                        </div>
+                        <div class="summary-card">
+                            <span class="summary-label">Receita Total {{ periodo.ano - 1 }}</span>
+                            <span class="summary-value">{{ resumo_executivo.total_geral.receita_2024 | formatar_moeda }}</span>
+                        </div>
+                        <div class="summary-card">
+                            <span class="summary-label">Variação Total</span>
+                            <span class="summary-value {{ 'positive' if resumo_executivo.total_geral.variacao_pct >= 0 else 'negative' }}">
+                                {{ resumo_executivo.total_geral.variacao_pct | formatar_percentual }}
+                            </span>
+                            <div class="summary-subtext">{{ resumo_executivo.total_geral.variacao_abs | formatar_moeda }}</div>
+                        </div>
+                        {% if resumo_executivo.categoria_principal %}
+                        <div class="summary-card">
+                            <span class="summary-label">Principal Categoria</span>
+                            <span class="summary-value">{{ resumo_executivo.categoria_principal.valor | formatar_moeda }}</span>
+                            <div class="summary-subtext">{{ resumo_executivo.categoria_principal.descricao }}</div>
+                        </div>
+                        {% endif %}
+                        {% if resumo_executivo.maior_crescimento %}
+                        <div class="summary-card">
+                            <span class="summary-label">Maior Crescimento</span>
+                            <span class="summary-value positive">+ {{ resumo_executivo.maior_crescimento.valor | formatar_moeda }}</span>
+                            <div class="summary-subtext">{{ resumo_executivo.maior_crescimento.descricao }}</div>
+                        </div>
+                        {% endif %}
+                        {% if resumo_executivo.maior_queda %}
+                        <div class="summary-card">
+                            <span class="summary-label">Maior Queda</span>
+                            <span class="summary-value negative">{{ resumo_executivo.maior_queda.valor | formatar_moeda }}</span>
+                            <div class="summary-subtext">{{ resumo_executivo.maior_queda.descricao }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if comparativo_mensal and comparativo_mensal.dados_html.tem_dados %}
+                <div class="modern-card" id="export-comparativo-mensal">
+                    <div class="card-header">
+                        <div class="card-icon">📅</div>
+                        <div class="card-title">
+                            <h2>{{ titulo_comparativo }}</h2>
+                            <p>Evolução mensal das receitas</p>
+                        </div>
+                    </div>
+                    
+                    <div class="comparison-cards">
+                        {% for mes in comparativo_mensal.dados_html.meses %}
+                        <div class="comparison-card">
+                            <div class="comparison-card-header">
+                                {{ mes.label_ate }}
+                            </div>
+                            <div class="comparison-card-body">
+                                <div class="comparison-row">
+                                    <span>{{ mes.ano_anterior }}:</span>
+                                    <strong>{{ mes.receita_anterior_formatada }}</strong>
+                                </div>
+                                <div class="comparison-row">
+                                    <span>{{ mes.ano_atual }}:</span>
+                                    <strong>{{ mes.receita_atual_formatada }}</strong>
+                                </div>
+                                <div class="comparison-row">
+                                    <span>Variação:</span>
+                                    <strong class="{{ mes.variacao_classe }}">
+                                        {{ mes.variacao_formatada|safe }}
+                                    </strong>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="chart-container">
+                        <canvas id="comparativoMensalChart"></canvas>
+                    </div>
+                </div>
                 {% endif %}
             </div>
         </div>
 
-        <section class="table-section">
-            <div class="table-wrapper">
-                {% if dados and dados|length > 1 %}
-                <table class="modern-table">
-                    <thead>
-                        <tr>
-                            <th>RECEITAS</th>
-                            <th>PREVISÃO INICIAL<br>{{ periodo.ano }}</th>
-                            <th>PREVISÃO ATUALIZADA<br>{{ periodo.ano }}</th>
-                            <th>REALIZADA<br>{{ "%02d"|format(periodo.mes) }}/{{ periodo.ano }}</th>
-                            <th>REALIZADA<br>{{ "%02d"|format(periodo.mes) }}/{{ periodo.ano - 1 }}</th>
-                            <th>
-                                <div class="variacao-header">
-                                    <span>VARIAÇÃO</span>
-                                    <div class="variacao-subheader">
-                                        <span>VALOR</span>
-                                        <span>%</span>
-                                    </div>
-                                </div>
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in dados %}
-                        <tr class="{{ item.classes }}" data-level="{{ item.nivel }}">
-                            <td>
-                                {% if item.classes and item.classes.find('parent-row') != -1 and item.nivel > 0 %}
-                                <span class="toggle-btn" data-state="collapsed">+</span>
-                                {% endif %}
-                                <span class="item-description">{{ item.descricao }}</span>
-                                {% if item.nivel == 3 and item.tem_lancamentos and coug_selecionada %}
-                                    {{ gerar_botao_lancamentos(item.tem_lancamentos, coug_selecionada, item.params_lancamentos, item.nivel)|safe }}
-                                {% endif %}
-                            </td>
-                            <td>{{ item.previsao_inicial|formatar_moeda }}</td>
-                            <td>{{ item.previsao_atualizada|formatar_moeda }}</td>
-                            <td>{{ item.receita_atual|formatar_moeda }}</td>
-                            <td>{{ item.receita_anterior|formatar_moeda }}</td>
-                            <td>
-                                <div class="variacao-cells">
-                                    <span class="{% if item.variacao_absoluta >= 0 %}valor-positivo{% else %}valor-negativo{% endif %}">
-                                        {{ item.variacao_absoluta|formatar_moeda }}
-                                    </span>
-                                    <span class="{% if item.variacao_percentual >= 0 %}valor-positivo{% else %}valor-negativo{% endif %}">
-                                        {{ item.variacao_percentual|formatar_percentual }}
-                                    </span>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                {% else %}
-                <div class="empty-state">
-                    <h3>Nenhum dado encontrado</h3>
-                    <p>Verifique os filtros ou a disponibilidade de dados para o período.</p>
-                </div>
-                {% endif %}
-            </div>
-        </section>
-
-        <div class="content-section">
-            
-            {% if chart_data_categorias or chart_data_origens %}
-            <div class="modern-card">
-                <div class="card-header">
-                    <div class="card-icon">📊</div>
-                    <div class="card-title">
-                        <h2>Análise Visual das Receitas</h2>
-                        <p>Distribuição por categorias e origens</p>
-                    </div>
-                </div>
-                <div class="chart-controls">
-                    <button id="btn-cat" class="chart-btn active" onclick="updateChart('categorias')">Por Categorias</button>
-                    <button id="btn-ori" class="chart-btn" onclick="updateChart('origens')">Por Origens</button>
-                </div>
-                <div class="chart-container">
-                    <canvas id="receitaPieChart"></canvas>
-                </div>
-            </div>
-            {% endif %}
-
-            {% if resumo_executivo %}
-            <div class="modern-card">
-                <div class="card-header">
-                    <div class="card-icon">📈</div>
-                    <div class="card-title">
-                        <h2>Resumo Executivo</h2>
-                        <p>Principais indicadores do período</p>
-                    </div>
-                </div>
-                <div class="summary-grid">
-                    <div class="summary-card">
-                        <span class="summary-label">Receita Total {{ periodo.ano }}</span>
-                        <span class="summary-value">{{ resumo_executivo.total_geral.receita_2025 | formatar_moeda }}</span>
-                    </div>
-                    <div class="summary-card">
-                        <span class="summary-label">Receita Total {{ periodo.ano - 1 }}</span>
-                        <span class="summary-value">{{ resumo_executivo.total_geral.receita_2024 | formatar_moeda }}</span>
-                    </div>
-                    <div class="summary-card">
-                        <span class="summary-label">Variação Total</span>
-                        <span class="summary-value {{ 'positive' if resumo_executivo.total_geral.variacao_pct >= 0 else 'negative' }}">
-                            {{ resumo_executivo.total_geral.variacao_pct | formatar_percentual }}
-                        </span>
-                        <div class="summary-subtext">{{ resumo_executivo.total_geral.variacao_abs | formatar_moeda }}</div>
-                    </div>
-                    {% if resumo_executivo.categoria_principal %}
-                    <div class="summary-card">
-                        <span class="summary-label">Principal Categoria</span>
-                        <span class="summary-value">{{ resumo_executivo.categoria_principal.valor | formatar_moeda }}</span>
-                        <div class="summary-subtext">{{ resumo_executivo.categoria_principal.descricao }}</div>
-                    </div>
-                    {% endif %}
-                    {% if resumo_executivo.maior_crescimento %}
-                    <div class="summary-card">
-                        <span class="summary-label">Maior Crescimento</span>
-                        <span class="summary-value positive">+ {{ resumo_executivo.maior_crescimento.valor | formatar_moeda }}</span>
-                        <div class="summary-subtext">{{ resumo_executivo.maior_crescimento.descricao }}</div>
-                    </div>
-                    {% endif %}
-                    {% if resumo_executivo.maior_queda %}
-                    <div class="summary-card">
-                        <span class="summary-label">Maior Queda</span>
-                        <span class="summary-value negative">{{ resumo_executivo.maior_queda.valor | formatar_moeda }}</span>
-                        <div class="summary-subtext">{{ resumo_executivo.maior_queda.descricao }}</div>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            {% endif %}
-
-            {% if comparativo_mensal and comparativo_mensal.dados_html.tem_dados %}
-            <div class="modern-card">
-                <div class="card-header">
-                    <div class="card-icon">📅</div>
-                    <div class="card-title">
-                        <h2>{{ titulo_comparativo }}</h2>
-                        <p>Evolução mensal das receitas</p>
-                    </div>
-                </div>
-                
-                <div class="comparison-cards">
-                    {% for mes in comparativo_mensal.dados_html.meses %}
-                    <div class="comparison-card">
-                        <div class="comparison-card-header">
-                            {{ mes.label_ate }}
-                        </div>
-                        <div class="comparison-card-body">
-                            <div class="comparison-row">
-                                <span>{{ mes.ano_anterior }}:</span>
-                                <strong>{{ mes.receita_anterior_formatada }}</strong>
-                            </div>
-                            <div class="comparison-row">
-                                <span>{{ mes.ano_atual }}:</span>
-                                <strong>{{ mes.receita_atual_formatada }}</strong>
-                            </div>
-                            <div class="comparison-row">
-                                <span>Variação:</span>
-                                <strong class="{{ mes.variacao_classe }}">
-                                    {{ mes.variacao_formatada|safe }}
-                                </strong>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                
-                <div class="chart-container">
-                    <canvas id="comparativoMensalChart"></canvas>
-                </div>
-            </div>
-            {% endif %}
-
+        <div class="no-export">
             {% if dados_cards and not coug_selecionada %}
                 {% include 'componentes/cards_unidades_gestoras.html' %}
             {% endif %}

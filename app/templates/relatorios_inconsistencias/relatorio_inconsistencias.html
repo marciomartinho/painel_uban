@@ -94,7 +94,7 @@
                             <td>{{ item.COUG }}</td>
                             <td>{{ item.COCONTACONTABIL }}</td>
                             <td>{{ item.COFONTE }}</td>
-                            <td class="{% if item.saldo_total < 0 %}valor-negativo{% endif %}">{{ item.saldo_formatado }}</td>
+                            <td class="{% if item.SALDO_TOTAL < 0 %}valor-negativo{% endif %}">{{ item.SALDO_FORMATADO }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -127,7 +127,7 @@
                             <td>{{ item.NOUG }}</td>
                             <td>{{ item.COCONTACONTABIL }}</td>
                             <td>{{ item.COCONTACORRENTE }}</td>
-                            <td class="{% if item.saldo_total < 0 %}valor-negativo{% endif %}">{{ item.saldo_formatado }}</td>
+                            <td class="{% if item.SALDO_TOTAL < 0 %}valor-negativo{% endif %}">{{ item.SALDO_FORMATADO }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -160,7 +160,7 @@
                             <td>{{ item.NOUG }}</td>
                             <td>{{ item.COCONTACONTABIL }}</td>
                             <td>{{ item.COCONTACORRENTE }}</td>
-                            <td class="valor-negativo">{{ item.saldo_formatado }}</td>
+                            <td class="valor-negativo">{{ item.SALDO_FORMATADO }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
