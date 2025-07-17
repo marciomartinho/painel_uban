@@ -1,7 +1,7 @@
 # app/modulos/conexao_hibrida.py
 """
 Sistema de conexão híbrido - SQLite local + PostgreSQL produção
-Ponto central e ÚNICA fonte de verdade para conexões e queries.
+Ponto central e ÚNICA fonte de verdade para conexões.
 """
 
 import os
@@ -18,11 +18,20 @@ def get_db_environment():
 
 def adaptar_query(query: str) -> str:
     """
-    Adapta a query removendo prefixos de schema para o ambiente PostgreSQL.
-    Ex: 'dimensoes.categorias' se torna 'categorias'.
+    Adapta a query para o ambiente de banco de dados correto.
+    - Remove prefixos de schema para PostgreSQL.
+    - Converte identificadores para minúsculas para PostgreSQL.
     """
     if get_db_environment() == 'postgres':
-        return query.replace('dimensoes.', '').replace('lancamentos_db.', '')
+        # Remove prefixos e converte para minúsculas para compatibilidade com Postgres
+        query = query.replace('dimensoes.', '').replace('lancamentos_db.', '')
+        # Esta é uma substituição simples. O ideal seria um parser, mas para este caso deve funcionar.
+        # Vamos converter tudo que parece um nome de coluna/tabela para minúsculas.
+        import re
+        # Encontra palavras que são prováveis identificadores (ex: fs.COLUNA, tabela, "COLUNA")
+        # e as converte para minúsculas.
+        query = re.sub(r'([a-zA-Z_][a-zA-Z0-9_]*\.)?([a-zA-Z_][a-zA-Z0-9_]+)', lambda m: m.group(0).lower(), query)
+
     return query
 
 class ConexaoBanco:
@@ -39,14 +48,11 @@ class ConexaoBanco:
                 if not database_url:
                     raise ConnectionError("Variável de ambiente DATABASE_URL não encontrada.")
                 self.conn = psycopg2.connect(database_url)
-                self.conn.cursor_factory = psycopg2.extras.RealDictCursor
             except Exception as e:
                 print(f"Erro fatal ao conectar ao PostgreSQL: {e}")
                 raise
         else: # sqlite
             try:
-                # --- CORREÇÃO APLICADA AQUI ---
-                # O caminho agora sobe 3 níveis (a partir de /app/modulos) para chegar na raiz do projeto
                 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                 base_path = os.path.join(project_root, 'dados', 'db')
                 caminho_principal = os.path.join(base_path, 'banco_saldo_receita.db')

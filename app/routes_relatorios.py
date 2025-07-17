@@ -10,8 +10,12 @@ from io import BytesIO
 from datetime import datetime
 import traceback
 
-# Importa módulos centrais e de lógica
-from app.modulos.conexao_hibrida import ConexaoBanco, adaptar_query
+# --- CORREÇÃO: Importações que faltavam foram adicionadas ---
+import psycopg2
+import psycopg2.extras
+from app.modulos.conexao_hibrida import ConexaoBanco, adaptar_query, get_db_environment
+# --- FIM DA CORREÇÃO ---
+
 from app.modulos.periodo import obter_periodo_referencia
 from app.modulos.formatacao import formatar_moeda, formatar_percentual
 from app.modulos.regras_contabeis_receita import get_filtro_conta, FILTROS_RELATORIO_ESPECIAIS
@@ -30,16 +34,19 @@ class ProcessadorDadosReceita:
     
     def __init__(self, conn):
         self.conn = conn
+        # --- CORREÇÃO: Lógica do cursor corrigida e simplificada ---
+        if get_db_environment() == 'postgres':
+            self.cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        else:
+            self.cursor = conn.cursor()
         self.coug_manager = COUGManager(conn)
     
     def buscar_dados_balanco(self, mes, ano, coug=None, filtro_relatorio_key=None):
         query_original = self._montar_query_agregada(mes, ano, coug, filtro_relatorio_key)
         query_adaptada = adaptar_query(query_original)
-        
         try:
-            cursor = self.conn.cursor()
-            cursor.execute(query_adaptada)
-            resultados = cursor.fetchall()
+            self.cursor.execute(query_adaptada)
+            resultados = self.cursor.fetchall()
             return self._processar_resultados_agregados(resultados)
         except Exception as e:
             print(f"Erro ao buscar dados agregados: {e}")
@@ -48,99 +55,74 @@ class ProcessadorDadosReceita:
     
     def _montar_query_agregada(self, mes, ano, coug=None, filtro_relatorio_key=None):
         filtro_coug = self.coug_manager.aplicar_filtro_query("fs", coug)
-        
         filtro_dinamico = ""
         if filtro_relatorio_key and filtro_relatorio_key in FILTROS_RELATORIO_ESPECIAIS:
             regra = FILTROS_RELATORIO_ESPECIAIS[filtro_relatorio_key]
-            campo = regra['campo_filtro']
+            campo = regra['campo_filtro'].lower()
             valores_str = ", ".join([f"'{v}'" for v in regra['valores']])
             filtro_dinamico = f"AND fs.{campo} IN ({valores_str})"
         
         return f"""
         WITH dados_agregados AS (
             SELECT 
-                fs.CATEGORIARECEITA,
-                COALESCE(cat.NOCATEGORIARECEITA, 'Categoria ' || fs.CATEGORIARECEITA) as nome_categoria,
-                fs.COFONTERECEITA,
-                COALESCE(ori.NOFONTERECEITA, 'Fonte ' || fs.COFONTERECEITA) as nome_fonte,
-                fs.COSUBFONTERECEITA,
-                COALESCE(esp.NOSUBFONTERECEITA, 'Subfonte ' || fs.COSUBFONTERECEITA) as nome_subfonte,
-                fs.COALINEA,
-                COALESCE(ali.NOALINEA, 'Alínea ' || fs.COALINEA) as nome_alinea,
-                fs.COEXERCICIO,
-                fs.INMES,
-                SUM(CASE WHEN {get_filtro_conta('PREVISAO_INICIAL_LIQUIDA')} THEN COALESCE(fs.saldo_contabil, 0) ELSE 0 END) as previsao_inicial,
-                SUM(CASE WHEN {get_filtro_conta('PREVISAO_ATUALIZADA_LIQUIDA')} THEN COALESCE(fs.saldo_contabil, 0) ELSE 0 END) as previsao_atualizada,
-                SUM(CASE WHEN {get_filtro_conta('RECEITA_LIQUIDA')} THEN COALESCE(fs.saldo_contabil, 0) ELSE 0 END) as receita_liquida
+                fs.categoriareceita,
+                COALESCE(cat.nocategoriareceita, 'Categoria ' || fs.categoriareceita) as nome_categoria,
+                fs.cofontereceita,
+                COALESCE(ori.nofontereceita, 'Fonte ' || fs.cofontereceita) as nome_fonte,
+                fs.cosubfontereceita,
+                COALESCE(esp.nosubfontereceita, 'Subfonte ' || fs.cosubfontereceita) as nome_subfonte,
+                fs.coalinea,
+                COALESCE(ali.noalinea, 'Alínea ' || fs.coalinea) as nome_alinea,
+                fs.coexercicio,
+                fs.inmes,
+                SUM(CASE WHEN {get_filtro_conta('PREVISAO_INICIAL_LIQUIDA').lower()} THEN COALESCE(fs.saldo_contabil, 0) ELSE 0 END) as previsao_inicial,
+                SUM(CASE WHEN {get_filtro_conta('PREVISAO_ATUALIZADA_LIQUIDA').lower()} THEN COALESCE(fs.saldo_contabil, 0) ELSE 0 END) as previsao_atualizada,
+                SUM(CASE WHEN {get_filtro_conta('RECEITA_LIQUIDA').lower()} THEN COALESCE(fs.saldo_contabil, 0) ELSE 0 END) as receita_liquida
             FROM fato_saldos fs
-            LEFT JOIN dimensoes.categorias cat ON fs.CATEGORIARECEITA = cat.COCATEGORIARECEITA
-            LEFT JOIN dimensoes.origens ori ON fs.COFONTERECEITA = ori.COFONTERECEITA
-            LEFT JOIN dimensoes.especies esp ON fs.COSUBFONTERECEITA = esp.COSUBFONTERECEITA
-            LEFT JOIN dimensoes.alineas ali ON fs.COALINEA = ali.COALINEA
+            LEFT JOIN dimensoes.categorias cat ON fs.categoriareceita = cat.cocategoriareceita
+            LEFT JOIN dimensoes.origens ori ON fs.cofontereceita = ori.cofontereceita
+            LEFT JOIN dimensoes.especies esp ON fs.cosubfontereceita = esp.cosubfontereceita
+            LEFT JOIN dimensoes.alineas ali ON fs.coalinea = ali.coalinea
             WHERE 1=1 {filtro_coug} {filtro_dinamico}
             GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
         )
         SELECT 
-            CATEGORIARECEITA,
-            nome_categoria,
-            COFONTERECEITA,
-            nome_fonte,
-            COSUBFONTERECEITA,
-            nome_subfonte,
-            COALINEA,
-            nome_alinea,
-            SUM(CASE WHEN COEXERCICIO = {ano} THEN previsao_inicial ELSE 0 END) as previsao_inicial,
-            SUM(CASE WHEN COEXERCICIO = {ano} THEN previsao_atualizada ELSE 0 END) as previsao_atualizada,
-            SUM(CASE WHEN COEXERCICIO = {ano} AND INMES <= {mes} THEN receita_liquida ELSE 0 END) as receita_atual,
-            SUM(CASE WHEN COEXERCICIO = {ano-1} AND INMES <= {mes} THEN receita_liquida ELSE 0 END) as receita_anterior
+            categoriareceita, nome_categoria, cofontereceita, nome_fonte,
+            cosubfontereceita, nome_subfonte, coalinea, nome_alinea,
+            SUM(CASE WHEN coexercicio = {ano} THEN previsao_inicial ELSE 0 END) as previsao_inicial,
+            SUM(CASE WHEN coexercicio = {ano} THEN previsao_atualizada ELSE 0 END) as previsao_atualizada,
+            SUM(CASE WHEN coexercicio = {ano} AND inmes <= {mes} THEN receita_liquida ELSE 0 END) as receita_atual,
+            SUM(CASE WHEN coexercicio = {ano-1} AND inmes <= {mes} THEN receita_liquida ELSE 0 END) as receita_anterior
         FROM dados_agregados
-        WHERE COEXERCICIO IN ({ano}, {ano-1})
+        WHERE coexercicio IN ({ano}, {ano-1})
         GROUP BY 1, 2, 3, 4, 5, 6, 7, 8
         HAVING (ABS(previsao_inicial) + ABS(previsao_atualizada) + ABS(receita_atual) + ABS(receita_anterior)) > 0.01
-        ORDER BY CATEGORIARECEITA, COFONTERECEITA, COSUBFONTERECEITA, COALINEA
+        ORDER BY categoriareceita, cofontereceita, cosubfontereceita, coalinea
         """
     
     def _processar_resultados_agregados(self, resultados):
         if not resultados:
             return self._dados_exemplo()
-        
         hierarquia = {}
-        
         for row_dict in resultados:
             row_lower = {str(k).lower(): v for k, v in dict(row_dict).items()}
             self._adicionar_na_hierarquia(hierarquia, row_lower)
-        
         dados_processados = []
         self._hierarquia_para_lista(hierarquia, dados_processados)
-        
         total_geral = self._calcular_total_geral(dados_processados)
         dados_processados.append(total_geral)
-        
         return dados_processados
     
     def _adicionar_na_hierarquia(self, hierarquia, row):
         cat_id, fonte_id, subfonte_id, alinea_id = row['categoriareceita'], row['cofontereceita'], row['cosubfontereceita'], row['coalinea']
-        
-        if cat_id not in hierarquia:
-            hierarquia[cat_id] = {'id': f'cat-{cat_id}', 'codigo': cat_id, 'descricao': row['nome_categoria'], 'nivel': 0, 'classes': 'nivel-0', 'fontes': {}, **self._valores_zerados()}
+        if cat_id not in hierarquia: hierarquia[cat_id] = {'id': f'cat-{cat_id}', 'codigo': cat_id, 'descricao': row['nome_categoria'], 'nivel': 0, 'classes': 'nivel-0', 'fontes': {}, **self._valores_zerados()}
         categoria = hierarquia[cat_id]
-
-        if fonte_id not in categoria['fontes']:
-            categoria['fontes'][fonte_id] = {'id': f'fonte-{cat_id}-{fonte_id}', 'codigo': fonte_id, 'descricao': row['nome_fonte'], 'nivel': 1, 'classes': 'nivel-1 parent-row', 'subfontes': {}, **self._valores_zerados()}
+        if fonte_id not in categoria['fontes']: categoria['fontes'][fonte_id] = {'id': f'fonte-{cat_id}-{fonte_id}', 'codigo': fonte_id, 'descricao': row['nome_fonte'], 'nivel': 1, 'classes': 'nivel-1 parent-row', 'subfontes': {}, **self._valores_zerados()}
         fonte = categoria['fontes'][fonte_id]
-
-        if subfonte_id not in fonte['subfontes']:
-            fonte['subfontes'][subfonte_id] = {'id': f'sub-{cat_id}-{fonte_id}-{subfonte_id}', 'codigo': subfonte_id, 'descricao': row['nome_subfonte'], 'nivel': 2, 'classes': 'nivel-2 parent-row', 'alineas': {}, **self._valores_zerados()}
+        if subfonte_id not in fonte['subfontes']: fonte['subfontes'][subfonte_id] = {'id': f'sub-{cat_id}-{fonte_id}-{subfonte_id}', 'codigo': subfonte_id, 'descricao': row['nome_subfonte'], 'nivel': 2, 'classes': 'nivel-2 parent-row', 'alineas': {}, **self._valores_zerados()}
         subfonte = fonte['subfontes'][subfonte_id]
-
         if alinea_id:
-            subfonte['alineas'][alinea_id] = {
-                'id': f'ali-{cat_id}-{fonte_id}-{subfonte_id}-{alinea_id}', 'codigo': alinea_id, 'descricao': f"{row['coalinea']} - {row['nome_alinea']}", 'nivel': 3, 'classes': 'nivel-3',
-                'previsao_inicial': row.get('previsao_inicial', 0) or 0, 'previsao_atualizada': row.get('previsao_atualizada', 0) or 0,
-                'receita_atual': row.get('receita_atual', 0) or 0, 'receita_anterior': row.get('receita_anterior', 0) or 0,
-                'tem_lancamentos': (row.get('receita_atual', 0) != 0 or row.get('receita_anterior', 0) != 0),
-                'params_lancamentos': {'cat_id': cat_id, 'fonte_id': fonte_id, 'subfonte_id': subfonte_id, 'alinea_id': alinea_id}
-            }
+            subfonte['alineas'][alinea_id] = {'id': f'ali-{cat_id}-{fonte_id}-{subfonte_id}-{alinea_id}', 'codigo': alinea_id, 'descricao': f"{row['coalinea']} - {row['nome_alinea']}", 'nivel': 3, 'classes': 'nivel-3', 'previsao_inicial': row.get('previsao_inicial', 0) or 0, 'previsao_atualizada': row.get('previsao_atualizada', 0) or 0, 'receita_atual': row.get('receita_atual', 0) or 0, 'receita_anterior': row.get('receita_anterior', 0) or 0, 'tem_lancamentos': (row.get('receita_atual', 0) != 0 or row.get('receita_anterior', 0) != 0), 'params_lancamentos': {'cat_id': cat_id, 'fonte_id': fonte_id, 'subfonte_id': subfonte_id, 'alinea_id': alinea_id}}
             for campo in ['previsao_inicial', 'previsao_atualizada', 'receita_atual', 'receita_anterior']:
                 valor = row.get(campo, 0) or 0
                 subfonte[campo] += valor
@@ -173,17 +155,12 @@ class ProcessadorDadosReceita:
         total = {'id': 'total', 'codigo': '', 'descricao': 'TOTAL GERAL', 'nivel': -1, 'classes': 'nivel--1', **self._valores_zerados()}
         for item in dados:
             if item.get('nivel') == 0:
-                for campo in ['previsao_inicial', 'previsao_atualizada', 'receita_atual', 'receita_anterior']:
-                    total[campo] += item.get(campo, 0)
+                for campo in ['previsao_inicial', 'previsao_atualizada', 'receita_atual', 'receita_anterior']: total[campo] += item.get(campo, 0)
         self._calcular_variacoes(total)
         return total
 
-    def _valores_zerados(self):
-        return {'previsao_inicial': 0, 'previsao_atualizada': 0, 'receita_atual': 0, 'receita_anterior': 0}
-
-    def _dados_exemplo(self):
-        return [{'id': 'total', 'codigo': '', 'descricao': 'Nenhum dado encontrado', 'nivel': -1, 'classes': 'nivel--1', 'previsao_inicial': 0, 'previsao_atualizada': 0, 'receita_atual': 0, 'receita_anterior': 0, 'variacao_absoluta': 0, 'variacao_percentual': 0, 'tem_lancamentos': False, 'params_lancamentos': {}}]
-
+    def _valores_zerados(self): return {'previsao_inicial': 0, 'previsao_atualizada': 0, 'receita_atual': 0, 'receita_anterior': 0}
+    def _dados_exemplo(self): return [{'id': 'total', 'codigo': '', 'descricao': 'Nenhum dado encontrado', 'nivel': -1, 'classes': 'nivel--1', 'previsao_inicial': 0, 'previsao_atualizada': 0, 'receita_atual': 0, 'receita_anterior': 0, 'variacao_absoluta': 0, 'variacao_percentual': 0, 'tem_lancamentos': False, 'params_lancamentos': {}}]
 
 def gerar_resumo_executivo(dados):
     if not dados or len(dados) <= 1: return None
@@ -228,8 +205,6 @@ def exportar_excel_balanco(dados, periodo, coug_selecionada, coug_manager, filtr
     sufixo_filtro = f"_{filtro_relatorio_key}" if filtro_relatorio_key else ""
     filename = f'balanco_orcamentario_receita{sufixo_coug}{sufixo_filtro}_{periodo["ano"]}_{periodo["mes"]:02d}.xlsx'
     return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name=filename)
-
-# ROTAS DO BLUEPRINT
 
 @relatorios_bp.route('/')
 def index():
@@ -313,7 +288,6 @@ def api_relatorio_receita_fonte():
         traceback.print_exc()
         return jsonify({"erro": str(e)}), 500
 
-# <<< NOVO ENDPOINT ADICIONADO AQUI >>>
 @relatorios_bp.route('/api/lancamentos-receita-fonte')
 def api_lancamentos_receita_fonte():
     """API para buscar lançamentos específicos do relatório receita/fonte."""
@@ -332,33 +306,31 @@ def api_lancamentos_receita_fonte():
             query_params = [ano, mes, coug, coalinea]
             query_sql = f"""
                 SELECT 
-                    l.COCONTACONTABIL,
-                    l.COUG,
-                    l.NUDOCUMENTO,
-                    l.COEVENTO,
-                    l.INDEBITOCREDITO,
-                    l.VALANCAMENTO
-                FROM lancamentos_db.lancamentos l
-                WHERE l.COEXERCICIO = ?
-                  AND l.INMES <= ?
-                  AND l.COUGCONTAB = ?
-                  AND l.COALINEA = ?
+                    COCONTACONTABIL, COUG, NUDOCUMENTO, COEVENTO, INDEBITOCREDITO, VALANCAMENTO
+                FROM lancamentos_db.lancamentos
+                WHERE COEXERCICIO = ?
+                  AND INMES <= ?
+                  AND COUGCONTAB = ?
+                  AND COALINEA = ?
                   AND ({get_filtro_conta('RECEITA_LIQUIDA')})
             """
             
             if cofonte:
-                query_sql += " AND l.COFONTE = ?"
+                query_sql += " AND COFONTE = ?"
                 query_params.append(cofonte)
             
-            query_sql += " ORDER BY l.NUDOCUMENTO, l.COEVENTO"
+            query_sql += " ORDER BY NUDOCUMENTO, COEVENTO"
             
             query_adaptada = adaptar_query(query_sql)
+            
             cursor = conn.cursor()
             cursor.execute(query_adaptada, query_params)
             
-            lancamentos = [dict(row) for row in cursor.fetchall()]
+            lancamentos = []
+            for row in cursor.fetchall():
+                lancamentos.append({str(k).lower(): v for k, v in dict(row).items()})
 
-            total_liquido = sum(l['VALANCAMENTO'] if l['INDEBITOCREDITO'] == 'C' else -l['VALANCAMENTO'] for l in lancamentos)
+            total_liquido = sum(l['valancamento'] if l['indebitocredito'] == 'C' else -l['valancamento'] for l in lancamentos)
 
             if lancamentos:
                 html = f"""
@@ -377,12 +349,12 @@ def api_lancamentos_receita_fonte():
                 for lanc in lancamentos:
                     html += f"""
                         <tr>
-                            <td>{lanc['COCONTACONTABIL']}</td>
-                            <td>{lanc['COUG']}</td>
-                            <td>{lanc['NUDOCUMENTO']}</td>
-                            <td>{lanc['COEVENTO']}</td>
-                            <td>{lanc['INDEBITOCREDITO']}</td>
-                            <td>{formatar_moeda(lanc['VALANCAMENTO'])}</td>
+                            <td>{lanc['cocontacontabil']}</td>
+                            <td>{lanc['coug']}</td>
+                            <td>{lanc['nudocumento']}</td>
+                            <td>{lanc['coevento']}</td>
+                            <td>{lanc['indebitocredito']}</td>
+                            <td>{formatar_moeda(lanc['valancamento'])}</td>
                         </tr>
                     """
                 html += f"""
@@ -406,8 +378,6 @@ def api_lancamentos_receita_fonte():
         traceback.print_exc()
         return jsonify({"erro": str(e)}), 500
 
-
-# FILTROS PARA TEMPLATES
 @relatorios_bp.app_template_filter('formatar_moeda')
 def filter_formatar_moeda(valor):
     return formatar_moeda(valor)
