@@ -62,6 +62,7 @@ def analisar_ugs_invalidas(exercicio):
         conn_dim.close()
 
         conn_saldos = _conectar_db(DB_PATH)
+        # ATUALIZAÇÃO: Adicionada a condição para filtrar a conta contábil
         query = "SELECT coug, cocontacontabil, cocontacorrente, saldo_contabil FROM fato_saldos WHERE coexercicio = ? AND intipoadm = 1 AND coug != '130101';"
         df_saldos = pd.read_sql_query(query, conn_saldos, params=(exercicio,))
         conn_saldos.close()

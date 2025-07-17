@@ -64,7 +64,8 @@ def processar_saldos():
     
     try:
         print("  - Lendo arquivo Excel...")
-        df = pd.read_excel(arquivo_excel, dtype=str)
+        # ATUALIZAÇÃO: Removido o dtype=str para ler os tipos de dados nativos do Excel
+        df = pd.read_excel(arquivo_excel)
         
         df.columns = [col.lower() for col in df.columns]
         print("  - Nomes de colunas convertidos para minúsculas.")
@@ -74,6 +75,8 @@ def processar_saldos():
         df = extrair_campos_cocontacorrente(df)
         
         print("\n  - Convertendo colunas numéricas...")
+        # ATUALIZAÇÃO: Garantindo que intipoadm seja numérico e tratando possíveis erros.
+        df['intipoadm'] = pd.to_numeric(df['intipoadm'], errors='coerce').fillna(0).astype(int)
         df['vadebito'] = pd.to_numeric(df['vadebito'], errors='coerce').fillna(0)
         df['vacredito'] = pd.to_numeric(df['vacredito'], errors='coerce').fillna(0)
         
@@ -86,7 +89,6 @@ def processar_saldos():
         print("\n  - Salvando no banco de dados...")
         df.to_sql('fato_saldos', conn, if_exists='replace', index=False, chunksize=10000)
         
-        # <<< CORREÇÃO: Adicionando a criação da tabela dim_tempo de volta >>>
         print("\n  - Criando tabela de períodos (dim_tempo)...")
         cursor.execute("""
         CREATE TABLE dim_tempo AS
@@ -104,7 +106,6 @@ def processar_saldos():
         """)
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_tempo_periodo ON dim_tempo (coexercicio, inmes)")
         print("    ✅ Tabela 'dim_tempo' criada com sucesso.")
-        # <<< FIM DA CORREÇÃO >>>
 
         print("\n  - Criando índices...")
         indices = ["coalinea", "cofonte", "cocontacontabil", "coug", "coexercicio", "inmes", "saldo_contabil"]
