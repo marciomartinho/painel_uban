@@ -1,29 +1,35 @@
 # app/relatorios/analise_inconsistencias.py
 
 import pandas as pd
-import locale
 from ..modulos.conexao_hibrida import ConexaoBanco, get_db_environment, adaptar_query
 
-try:
-    locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
-except locale.Error:
-    print("Localidade pt_BR.UTF-8 não encontrada, usando localidade padrão.")
-
+# --- FUNÇÃO DE FORMATAÇÃO MANUAL - NÃO DEPENDE DO SERVIDOR ---
 def _formatar_moeda(valor):
-    if valor is None: return "R$ 0,00"
-    return locale.currency(valor, grouping=True, symbol=True)
+    """
+    Formata um valor numérico como moeda brasileira (BRL) sem depender da biblioteca locale.
+    Isso garante que a formatação funcione em qualquer ambiente de servidor.
+    """
+    if valor is None:
+        return "R$ 0,00"
+    try:
+        valor_float = float(valor)
+        # Formata com duas casas decimais, usando ponto como separador de milhar e vírgula para decimal
+        formatado = f'{valor_float:,.2f}'
+        # Inverte os separadores para o padrão brasileiro
+        formatado = formatado.replace(',', 'X').replace('.', ',').replace('X', '.')
+        return f"R$ {formatado}"
+    except (ValueError, TypeError):
+        return "R$ 0,00"
 
 def _executar_query(query, params=None):
     """Função auxiliar para executar queries em modo híbrido."""
     with ConexaoBanco() as conn:
         query_adaptada = adaptar_query(query)
-        # O read_sql_query do Pandas lida com os placeholders de forma diferente
         if get_db_environment() == 'postgres':
              df = pd.read_sql_query(query_adaptada, conn, params=params)
         else:
              df = pd.read_sql_query(query_adaptada.replace('%s', '?'), conn, params=params or [])
         
-        # Padroniza os nomes das colunas para minúsculas
         df.columns = [col.lower() for col in df.columns]
         return df
 
@@ -40,14 +46,10 @@ def analisar_fontes_superavit(exercicio):
     try:
         query = "SELECT coug, cocontacontabil, cofonte, saldo_contabil FROM fato_saldos WHERE coexercicio = %s;"
         df = _executar_query(query, params=(exercicio,))
-        
         if df.empty: return []
-        
         df['cofonte'] = df['cofonte'].astype(str)
         df_superavit = df[df['cofonte'].str.match(r'^[348]')].copy()
-        
         if df_superavit.empty: return []
-        
         agrupado = df_superavit.groupby(['coug', 'cocontacontabil', 'cofonte']).agg(saldo_total=('saldo_contabil', 'sum')).reset_index()
         inconsistencias = agrupado[agrupado['saldo_total'] != 0].copy()
         inconsistencias['saldo_formatado'] = inconsistencias['saldo_total'].apply(_formatar_moeda)
@@ -59,17 +61,15 @@ def analisar_fontes_superavit(exercicio):
 def analisar_ugs_invalidas(exercicio):
     try:
         type_cast = "::text" if get_db_environment() == 'postgres' else ""
-        df_ugs = _executar_query(f"SELECT coug, noug FROM dimensoes.unidades_gestoras")
+        df_ugs = _executar_query("SELECT coug, noug FROM dimensoes.unidades_gestoras")
         df_ugs['coug'] = df_ugs['coug'].astype(str)
 
         query_saldos = f"SELECT coug, cocontacontabil, cocontacorrente, saldo_contabil FROM fato_saldos WHERE coexercicio = %s AND intipoadm = 1 AND coug{type_cast} != '130101';"
         df_saldos = _executar_query(query_saldos, params=(exercicio,))
-        
         if df_saldos.empty: return []
 
         agrupado = df_saldos.groupby(['coug', 'cocontacontabil', 'cocontacorrente']).agg(saldo_total=('saldo_contabil', 'sum')).reset_index()
         inconsistencias = agrupado[agrupado['saldo_total'] != 0].copy()
-        
         if inconsistencias.empty: return []
         
         inconsistencias['coug'] = inconsistencias['coug'].astype(str)
@@ -88,12 +88,10 @@ def analisar_saldos_negativos(exercicio):
 
         query = "SELECT coug, cocontacontabil, cocontacorrente, saldo_contabil FROM fato_saldos WHERE coexercicio = %s AND cocontacontabil = '621200000';"
         df = _executar_query(query, params=(exercicio,))
-
         if df.empty: return []
 
         agrupado = df.groupby(['coug', 'cocontacontabil', 'cocontacorrente']).agg(saldo_total=('saldo_contabil', 'sum')).reset_index()
         inconsistencias = agrupado[agrupado['saldo_total'] < 0].copy()
-        
         if inconsistencias.empty: return []
         
         inconsistencias['coug'] = inconsistencias['coug'].astype(str)
