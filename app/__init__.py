@@ -8,9 +8,14 @@ def create_app():
 
     with app.app_context():
         # Importa e registra o blueprint do relatório de inconsistências
-        from .relatorios.routes_inconsistencias import inconsistencias_bp
+        from .routes_inconsistencias import inconsistencias_bp
         app.register_blueprint(inconsistencias_bp)
 
         # Se houver outras partes da aplicação, registre-as aqui também.
-        
+        # Por exemplo, se quiser registrar os outros blueprints aqui em vez de no main.py:
+        # from .routes_relatorios import relatorios_bp
+        # from .routes_visualizador import visualizador_bp
+        # app.register_blueprint(relatorios_bp)
+        # app.register_blueprint(visualizador_bp)
+
     return app
