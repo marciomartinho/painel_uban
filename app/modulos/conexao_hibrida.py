@@ -19,12 +19,12 @@ def get_db_environment():
 def adaptar_query(query: str) -> str:
     """
     Adapta a query para o ambiente de banco de dados correto.
-    - Remove prefixos de schema para PostgreSQL.
-    - Troca '?' por '%s' para PostgreSQL.
     """
     if get_db_environment() == 'postgres':
-        query = query.replace('dimensoes.', '').replace('lancamentos_db.', '')
+        # Para Postgres, só precisamos trocar o placeholder e remover o alias do SQLite
         query = query.replace('?', '%s')
+        query = query.replace('lancamentos_db.', '')
+    # Para SQLite, a query original com "dimensoes." e "?" já funciona
     return query
 
 class ConexaoBanco:
