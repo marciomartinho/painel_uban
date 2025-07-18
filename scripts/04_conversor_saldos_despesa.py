@@ -14,22 +14,20 @@ CAMINHO_DADOS_BRUTOS = os.path.join(BASE_DIR, 'dados', 'dados_brutos')
 CAMINHO_DB = os.path.join(BASE_DIR, 'dados', 'db')
 os.makedirs(CAMINHO_DB, exist_ok=True)
 
-# Colunas a serem lidas do Excel
 COLUNAS_NECESSARIAS = [
-    'COEXERCICIO', 'COUG', 'COGESTAO', 'COCONTACONTABIL', 'COCONTACORRENTE', 'INMES',
-    'INESFERA', 'COUO', 'COFUNCAO', 'COSUBFUNCAO', 'COPROGRAMA', 'COPROJETO',
-    'COSUBTITULO', 'COFONTE', 'CONATUREZA', 'INCATEGORIA', 'VACREDITO', 'VADEBITO', 'INTIPOADM'
+    'COEXERCICIO', 'COUG', 'COGESTAO', 'COCONTACONTABIL', 'COCONTACORRENTE',
+    'INMES', 'INESFERA', 'COUO', 'COFUNCAO', 'COSUBFUNCAO', 'COPROGRAMA',
+    'COPROJETO', 'COSUBTITULO', 'COFONTE', 'CONATUREZA', 'INCATEGORIA',
+    'VACREDITO', 'VADEBITO', 'INTIPOADM'
 ]
 
 def extrair_classe_orcamentaria(cocontacorrente):
-    """Extrai COCLASSEORC se a conta corrente tiver 40 caracteres."""
     s = str(cocontacorrente).strip()
     if len(s) == 40:
-        return s[32:40] # Caracteres 33 a 40 (índice 32 até o 40)
+        return s[32:40]
     return None
 
 def processar_saldos_despesa():
-    """Processa o arquivo de saldos de despesa e cria o banco de dados."""
     print("=" * 60)
     print("CONVERSOR DE SALDOS DE DESPESA")
     print("=" * 60)
@@ -52,12 +50,22 @@ def processar_saldos_despesa():
         print("Banco antigo removido.")
 
     try:
-        print(f"  - Lendo arquivo Excel (apenas colunas necessárias)...")
-        df = pd.read_excel(arquivo_excel, usecols=lambda c: c in COLUNAS_NECESSARIAS)
+        print(f"  - Lendo arquivo Excel (forçando tudo como texto)...")
+        # --- A CORREÇÃO ESTÁ AQUI: dtype=str ---
+        df = pd.read_excel(
+            arquivo_excel, 
+            usecols=lambda c: c in COLUNAS_NECESSARIAS,
+            dtype=str  # Força todas as colunas a serem lidas como texto
+        )
         
         df.columns = [col.lower() for col in df.columns]
         print("  - Nomes de colunas convertidos para minúsculas.")
         print(f"  - Total de registros lidos: {len(df):,}")
+
+        print("  - Convertendo colunas de valor para número...")
+        df['vadebito'] = pd.to_numeric(df['vadebito'], errors='coerce').fillna(0)
+        df['vacredito'] = pd.to_numeric(df['vacredito'], errors='coerce').fillna(0)
+        print("    ✅ Colunas de valor convertidas.")
 
         print("  - Extraindo COCLASSEORC...")
         df['coclasseorc'] = df['cocontacorrente'].apply(extrair_classe_orcamentaria)
