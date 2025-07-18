@@ -74,7 +74,7 @@ def exportar_excel_balanco(dados, periodo, coug_selecionada, coug_manager, filtr
 
 class ProcessadorDadosReceita:
     """Processa dados para o relatório de balanço orçamentário"""
-    
+
     def __init__(self, conn):
         self.conn = conn
         if get_db_environment() == 'postgres':
@@ -83,7 +83,7 @@ class ProcessadorDadosReceita:
             self.conn.row_factory = sqlite3.Row
             self.cursor = conn.cursor()
         self.coug_manager = COUGManager(conn)
-    
+
     def buscar_dados_balanco(self, mes, ano, coug=None, filtro_relatorio_key=None):
         query_original = self._montar_query_agregada(mes, ano, coug, filtro_relatorio_key)
         query_adaptada = adaptar_query(query_original)
@@ -97,6 +97,7 @@ class ProcessadorDadosReceita:
             return [] # Retorna lista vazia em caso de erro
 
     def _montar_query_agregada(self, mes, ano, coug=None, filtro_relatorio_key=None):
+        # CORREÇÃO DA INDENTAÇÃO COMEÇA AQUI
         filtro_coug = self.coug_manager.aplicar_filtro_query("fs", coug)
         filtro_dinamico = ""
         if filtro_relatorio_key and filtro_relatorio_key in FILTROS_RELATORIO_ESPECIAIS:
@@ -104,11 +105,10 @@ class ProcessadorDadosReceita:
             campo = regra['campo_filtro']
             valores_str = ", ".join([f"'{v}'" for v in regra['valores']])
             filtro_dinamico = f"AND fs.{campo} IN ({valores_str})"
-        
-        # <<< CORREÇÃO PRINCIPAL: Todas as colunas em minúsculas >>>
+
         return f"""
         WITH dados_agregados AS (
-            SELECT 
+            SELECT
                 fs.categoriareceita,
                 COALESCE(cat.nocategoriareceita, 'Categoria ' || fs.categoriareceita) as nome_categoria,
                 fs.cofontereceita,
@@ -129,21 +129,24 @@ class ProcessadorDadosReceita:
             LEFT JOIN dimensoes.alineas ali ON fs.coalinea = ali.coalinea
             WHERE 1=1 {filtro_coug} {filtro_dinamico}
             GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+        ),
+        dados_calculados AS (
+            SELECT
+                categoriareceita, nome_categoria, cofontereceita, nome_fonte,
+                cosubfontereceita, nome_subfonte, coalinea, nome_alinea,
+                SUM(CASE WHEN coexercicio = {ano} THEN previsao_inicial ELSE 0 END) as previsao_inicial,
+                SUM(CASE WHEN coexercicio = {ano} THEN previsao_atualizada ELSE 0 END) as previsao_atualizada,
+                SUM(CASE WHEN coexercicio = {ano} AND inmes <= {mes} THEN receita_liquida ELSE 0 END) as receita_atual,
+                SUM(CASE WHEN coexercicio = {ano-1} AND inmes <= {mes} THEN receita_liquida ELSE 0 END) as receita_anterior
+            FROM dados_agregados
+            WHERE coexercicio IN ({ano}, {ano-1})
+            GROUP BY 1, 2, 3, 4, 5, 6, 7, 8
         )
-        SELECT 
-            categoriareceita, nome_categoria, cofontereceita, nome_fonte,
-            cosubfontereceita, nome_subfonte, coalinea, nome_alinea,
-            SUM(CASE WHEN coexercicio = {ano} THEN previsao_inicial ELSE 0 END) as previsao_inicial,
-            SUM(CASE WHEN coexercicio = {ano} THEN previsao_atualizada ELSE 0 END) as previsao_atualizada,
-            SUM(CASE WHEN coexercicio = {ano} AND inmes <= {mes} THEN receita_liquida ELSE 0 END) as receita_atual,
-            SUM(CASE WHEN coexercicio = {ano-1} AND inmes <= {mes} THEN receita_liquida ELSE 0 END) as receita_anterior
-        FROM dados_agregados
-        WHERE coexercicio IN ({ano}, {ano-1})
-        GROUP BY 1, 2, 3, 4, 5, 6, 7, 8
-        HAVING (ABS(previsao_inicial) + ABS(previsao_atualizada) + ABS(receita_atual) + ABS(receita_anterior)) > 0.01
+        SELECT * FROM dados_calculados
+        WHERE (ABS(previsao_inicial) + ABS(previsao_atualizada) + ABS(receita_atual) + ABS(receita_anterior)) > 0.01
         ORDER BY categoriareceita, cofontereceita, cosubfontereceita, coalinea
         """
-    
+
     def _processar_resultados_agregados(self, resultados):
         if not resultados:
             return [] # Retorna lista vazia
@@ -155,19 +158,19 @@ class ProcessadorDadosReceita:
         total_geral = self._calcular_total_geral(dados_processados)
         dados_processados.append(total_geral)
         return dados_processados
-    
+
     def _adicionar_na_hierarquia(self, hierarquia, row):
         # <<< CORREÇÃO: Usar .get() para evitar KeyErrors e garantir minúsculas >>>
         cat_id = row.get('categoriareceita')
         fonte_id = row.get('cofontereceita')
         subfonte_id = row.get('cosubfontereceita')
         alinea_id = row.get('coalinea')
-        
+
         if not cat_id: return
 
         if cat_id not in hierarquia: hierarquia[cat_id] = {'id': f'cat-{cat_id}', 'codigo': cat_id, 'descricao': row.get('nome_categoria'), 'nivel': 0, 'classes': 'nivel-0', 'fontes': {}, **self._valores_zerados()}
         categoria = hierarquia[cat_id]
-        
+
         if fonte_id and fonte_id not in categoria['fontes']: categoria['fontes'][fonte_id] = {'id': f'fonte-{cat_id}-{fonte_id}', 'codigo': fonte_id, 'descricao': row.get('nome_fonte'), 'nivel': 1, 'classes': 'nivel-1 parent-row', 'subfontes': {}, **self._valores_zerados()}
         fonte = categoria['fontes'].get(fonte_id)
         if not fonte: return
@@ -183,7 +186,7 @@ class ProcessadorDadosReceita:
                 subfonte[campo] += valor
                 fonte[campo] += valor
                 categoria[campo] += valor
-    
+
     def _hierarquia_para_lista(self, hierarquia, lista_saida):
         for cat_id in sorted(hierarquia.keys()):
             categoria = hierarquia[cat_id]
@@ -201,7 +204,7 @@ class ProcessadorDadosReceita:
                         alinea = subfonte['alineas'][alinea_id]
                         self._calcular_variacoes(alinea)
                         lista_saida.append(alinea)
-    
+
     def _calcular_variacoes(self, item):
         receita_atual = item.get('receita_atual', 0) or 0
         receita_anterior = item.get('receita_anterior', 0) or 0
@@ -211,7 +214,7 @@ class ProcessadorDadosReceita:
         else:
             item['variacao_percentual'] = 100.0 if receita_atual != 0 else 0.0
 
-    
+
     def _calcular_total_geral(self, dados):
         total = {'id': 'total', 'codigo': '', 'descricao': 'TOTAL GERAL', 'nivel': -1, 'classes': 'nivel--1', **self._valores_zerados()}
         for item in dados:
@@ -243,13 +246,9 @@ def balanco_orcamentario_receita():
             processador = ProcessadorDadosReceita(conn)
             dados = processador.buscar_dados_balanco(periodo['mes'], periodo['ano'], coug_selecionada, filtro_relatorio_key)
             
-            # Se a primeira query falhou, 'dados' será uma lista vazia e a transação pode estar abortada.
-            # É mais seguro fazer as próximas queries em uma nova conexão/transação ou verificar o estado da conexão.
-            # Por simplicidade, vamos assumir que se 'dados' falhar, o resto não importa muito.
             if formato == 'excel':
                 return exportar_excel_balanco(dados, periodo, coug_selecionada, coug_manager, filtro_relatorio_key)
             
-            # Essas chamadas subsequentes podem falhar se a primeira falhou no PostgreSQL
             comparativo_mensal = gerar_comparativo_mensal(conn, periodo['ano'], coug_selecionada, filtro_relatorio_key)
             dados_cards = gerar_cards_unidades(conn, periodo['ano'], periodo['mes'], filtro_relatorio_key)
             resumo = gerar_resumo_executivo(dados)
@@ -333,7 +332,7 @@ def api_lancamentos_receita_fonte():
             query_sql = f"""
                 SELECT 
                     cocontacontabil, coug, nudocumento, coevento, indebitocredito, valancamento
-                FROM lancamentos_db.lancamentos
+                FROM lancamentos
                 WHERE coexercicio = ?
                   AND inmes <= ?
                   AND cougcontab = ?
