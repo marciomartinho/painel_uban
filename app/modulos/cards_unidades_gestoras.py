@@ -35,6 +35,12 @@ class CardsUnidadesGestoras:
             valores_str = ", ".join([f"'{v}'" for v in regra['valores']])
             filtro_dinamico = f"AND fs.{campo} IN ({valores_str})"
 
+        # --- CORREÇÃO FINAL PARA COMPATIBILIDADE ---
+        # Adiciona o ::text cast apenas se o ambiente for postgres
+        type_cast = "::text" if get_db_environment() == 'postgres' else ""
+        # Corrigido o HAVING clause para funcionar em ambos os bancos
+        having_clause = f"HAVING SUM(CASE WHEN fs.coexercicio = {ano} AND fs.inmes <= {mes} AND {get_filtro_conta('RECEITA_LIQUIDA')} {filtro_dinamico} THEN fs.saldo_contabil ELSE 0 END) > 0"
+
         query = f"""
         WITH receitas_por_ug AS (
             SELECT
@@ -57,10 +63,10 @@ class CardsUnidadesGestoras:
                     ELSE 0
                 END) as receita_anterior
             FROM fato_saldos fs
-            LEFT JOIN dimensoes.unidades_gestoras ug ON fs.coug::text = ug.coug
+            LEFT JOIN dimensoes.unidades_gestoras ug ON fs.coug{type_cast} = ug.coug
             WHERE fs.coug IS NOT NULL
             GROUP BY fs.coug, ug.noug
-            HAVING SUM(CASE WHEN fs.coexercicio = {ano} AND fs.inmes <= {mes} AND {get_filtro_conta('RECEITA_LIQUIDA')} {filtro_dinamico} THEN fs.saldo_contabil ELSE 0 END) > 0
+            {having_clause}
         )
         SELECT
             coug,
@@ -83,7 +89,7 @@ class CardsUnidadesGestoras:
 
         for row in self.cursor:
             unidades.append({
-                'codigo': str(row['coug']), # Garante que o código seja sempre string
+                'codigo': str(row['coug']),
                 'nome': row['noug'],
                 'descricao_completa': f"{row['coug']} - {row['noug']}",
                 'receita_realizada': row['receita_realizada'] or 0,
@@ -119,7 +125,7 @@ class CardsUnidadesGestoras:
         receita_total_anterior = sum(u['receita_anterior'] for u in unidades)
         variacao_absoluta = receita_total - receita_total_anterior
         variacao_percentual = (variacao_absoluta / receita_total_anterior * 100) if receita_total_anterior > 0 else 100.0 if receita_total > 0 else 0
-        maior_receita = max(unidades, key=lambda u: u['receita_realizada'])
+        maior_receita = max(unidades, key=lambda u: u['receita_realizada']) if unidades else None
         unidades_com_historico = [u for u in unidades if u['receita_anterior'] > 0]
         maior_crescimento, maior_queda = None, None
         if unidades_com_historico:

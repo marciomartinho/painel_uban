@@ -10,7 +10,6 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CAMINHO_DADOS_BRUTOS = os.path.join(BASE_DIR, 'dados', 'dados_brutos')
 
 # Mapeamento de arquivos para tabelas, indicando o esquema
-# Esquema 'dimensoes' para tabelas de dimensão, 'public' para fatos.
 ARQUIVOS_PARA_POVOAR = {
     # Tabelas no esquema 'dimensoes'
     'dimensao/receita_categoria.csv': ('dimensoes', 'categorias'),
@@ -21,6 +20,8 @@ ARQUIVOS_PARA_POVOAR = {
     'dimensao/fonte.csv': ('dimensoes', 'fontes'),
     'dimensao/contacontabil.csv': ('dimensoes', 'contas'),
     'dimensao/unidadegestora.csv': ('dimensoes', 'unidades_gestoras'),
+    'dimensao/elemento.csv': ('dimensoes', 'elemento'),
+    'dimensao/gestao.csv': ('dimensoes', 'gestao'),
     # Tabelas no esquema 'public' (principal)
     'ReceitaSaldo.xlsx': ('public', 'fato_saldos'),
     'ReceitaLancamento.xlsx': ('public', 'lancamentos')
@@ -41,15 +42,30 @@ def ler_arquivo(caminho_completo):
     if caminho_completo.endswith('.xlsx'):
         return pd.read_excel(caminho_completo, engine='openpyxl')
     
-    encoding = detectar_encoding(caminho_completo)
-    try:
-        df = pd.read_csv(caminho_completo, encoding=encoding, on_bad_lines='warn', sep=';', dtype=str)
-        if len(df.columns) <= 1:
-            df = pd.read_csv(caminho_completo, encoding=encoding, on_bad_lines='warn', sep=',', dtype=str)
-        return df
-    except Exception as e:
-        print(f"  ❌ Erro ao ler CSV {os.path.basename(caminho_completo)}: {e}")
-        return None
+    # --- LÓGICA DE LEITURA DE CSV APRIMORADA ---
+    encodings_para_tentar = ['utf-8', 'latin1', 'iso-8859-1', 'cp1252', 'utf-8-sig']
+    separadores = [';', ',']
+    
+    detected_encoding = detectar_encoding(caminho_completo)
+    if detected_encoding and detected_encoding not in encodings_para_tentar:
+        encodings_para_tentar.insert(0, detected_encoding)
+
+    for encoding in encodings_para_tentar:
+        for sep in separadores:
+            try:
+                # Tenta ler o arquivo com as configurações atuais
+                df = pd.read_csv(caminho_completo, encoding=encoding, sep=sep, dtype=str, on_bad_lines='warn')
+                # Se o separador funcionou (gerou mais de uma coluna), retorna o dataframe
+                if len(df.columns) > 1:
+                    print(f"   -> Sucesso com Encoding: {encoding}, Separador: '{sep}'")
+                    return df
+            except Exception:
+                # Se der erro, simplesmente continua para a próxima tentativa
+                continue
+    
+    print(f"  ❌ Erro: Não foi possível ler ou parsear o arquivo CSV: {os.path.basename(caminho_completo)}. Pulando.")
+    return None
+    # --- FIM DA LÓGICA APRIMORADA ---
 
 def processar_dataframe(df, nome_tabela):
     """Aplica transformações nos DataFrames."""
@@ -97,7 +113,6 @@ def main():
         engine = create_engine(db_url)
         with engine.connect() as connection:
             print("✅ Conexão com PostgreSQL estabelecida!")
-            # Criar o schema 'dimensoes'
             connection.execute(text("CREATE SCHEMA IF NOT EXISTS dimensoes"))
             connection.commit()
             print("✅ Esquema 'dimensoes' garantido.")

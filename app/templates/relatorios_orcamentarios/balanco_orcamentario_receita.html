@@ -1062,12 +1062,12 @@
         </div>
 
         <div class="no-export">
-            {% if dados_cards and not coug_selecionada %}
-                {% include 'componentes/cards_unidades_gestoras.html' %}
-            {% endif %}
+    <div class="content-section">  {% if dados_cards and not coug_selecionada %}
+            {% include 'componentes/cards_unidades_gestoras.html' %}
+        {% endif %}
 
-            {% include 'componentes/relatorio_receita_fonte.html' %}
-        </div>
+        {% include 'componentes/relatorio_receita_fonte.html' %}
+    </div>  
     </div>
 
     {% include 'componentes/modal_lancamentos.html' %}
