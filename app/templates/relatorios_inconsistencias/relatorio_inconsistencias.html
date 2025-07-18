@@ -55,9 +55,9 @@
         <div class="action-bar">
             <div class="action-bar-content">
                 <div class="action-buttons">
-                    <a href="/" class="btn btn-secondary"><span>🏠</span> Voltar ao Início</a>
+                    <a href="{{ url_for('index') }}" class="btn btn-secondary"><span>🏠</span> Voltar ao Início</a>
                 </div>
-                <form method="get" id="form-exercicio">
+                <form method="get" id="form-exercicio" action="{{ url_for('inconsistencias.relatorio_inconsistencias') }}">
                     <select name="exercicio" class="modern-select" onchange="document.getElementById('form-exercicio').submit()">
                         <option value="">Selecione o Exercício</option>
                         {% for ano in exercicios %}
@@ -91,10 +91,10 @@
                     <tbody>
                         {% for item in dados_fontes_superavit %}
                         <tr>
-                            <td>{{ item.COUG }}</td>
-                            <td>{{ item.COCONTACONTABIL }}</td>
-                            <td>{{ item.COFONTE }}</td>
-                            <td class="{% if item.SALDO_TOTAL < 0 %}valor-negativo{% endif %}">{{ item.SALDO_FORMATADO }}</td>
+                            <td>{{ item.coug }}</td>
+                            <td>{{ item.cocontacontabil }}</td>
+                            <td>{{ item.cofonte }}</td>
+                            <td class="{% if item.saldo_total < 0 %}valor-negativo{% endif %}">{{ item.saldo_formatado }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -123,11 +123,11 @@
                     <tbody>
                         {% for item in dados_ugs_invalidas %}
                         <tr>
-                            <td>{{ item.COUG }}</td>
-                            <td>{{ item.NOUG }}</td>
-                            <td>{{ item.COCONTACONTABIL }}</td>
-                            <td>{{ item.COCONTACORRENTE }}</td>
-                            <td class="{% if item.SALDO_TOTAL < 0 %}valor-negativo{% endif %}">{{ item.SALDO_FORMATADO }}</td>
+                            <td>{{ item.coug }}</td>
+                            <td>{{ item.noug }}</td>
+                            <td>{{ item.cocontacontabil }}</td>
+                            <td>{{ item.cocontacorrente }}</td>
+                            <td class="{% if item.saldo_total < 0 %}valor-negativo{% endif %}">{{ item.saldo_formatado }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -156,11 +156,11 @@
                     <tbody>
                         {% for item in dados_saldos_negativos %}
                         <tr>
-                            <td>{{ item.COUG }}</td>
-                            <td>{{ item.NOUG }}</td>
-                            <td>{{ item.COCONTACONTABIL }}</td>
-                            <td>{{ item.COCONTACORRENTE }}</td>
-                            <td class="valor-negativo">{{ item.SALDO_FORMATADO }}</td>
+                            <td>{{ item.coug }}</td>
+                            <td>{{ item.noug }}</td>
+                            <td>{{ item.cocontacontabil }}</td>
+                            <td>{{ item.cocontacorrente }}</td>
+                            <td class="valor-negativo">{{ item.saldo_formatado }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -172,7 +172,6 @@
                 </div>
                 {% endif %}
             </div>
-
         </section>
     </div>
 </body>

@@ -1,372 +1,222 @@
 # app/routes_visualizador.py
 """Rotas para visualização direta dos dados dos bancos"""
 
-from flask import Blueprint, render_template, request, jsonify
-import sqlite3
-import os
+from flask import Blueprint, render_template, request, jsonify, abort
 import pandas as pd
+from io import BytesIO
+import os
+import sqlite3
+import traceback
+from app.modulos.conexao_hibrida import ConexaoBanco, get_db_environment, adaptar_query
+import psycopg2.extras
 
 visualizador_bp = Blueprint('visualizador', __name__, url_prefix='/visualizador')
 
-# Tabelas conhecidas do sistema (para identificação)
-TABELAS_DIMENSAO_CONHECIDAS = [
-    'categorias', 'origens', 'especies', 'especificacoes', 
-    'alineas', 'fontes', 'contas', 'unidades_gestoras'
-]
+# --- Funções Auxiliares Híbridas ---
 
-def get_db_path(db_name):
-    """Retorna o caminho do banco de dados"""
-    base_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'dados', 'db')
-    
-    db_paths = {
-        'saldos': os.path.join(base_path, 'banco_saldo_receita.db'),
-        'lancamentos': os.path.join(base_path, 'banco_lancamento_receita.db'),
-        'dimensoes': os.path.join(base_path, 'banco_dimensoes.db')
-    }
-    
-    return db_paths.get(db_name)
+def get_table_list(cursor):
+    """Retorna a lista de tabelas e views para o banco de dados atual."""
+    if get_db_environment() == 'postgres':
+        cursor.execute("""
+            SELECT table_name as name, table_type as type, table_schema as schema
+            FROM information_schema.tables
+            WHERE table_schema IN ('public', 'dimensoes')
+            ORDER BY table_schema, table_type, table_name;
+        """)
+    else: # sqlite
+        cursor.execute("""
+            SELECT name, type, 'main' as schema FROM sqlite_master
+            WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%'
+            ORDER BY type, name;
+        """)
+    return cursor.fetchall()
 
-def get_table_info(cursor, table_name):
-    """Obtém informações detalhadas sobre uma tabela"""
-    # Informações das colunas
-    cursor.execute(f"PRAGMA table_info({table_name})")
-    colunas = cursor.fetchall()
+def get_table_info(cursor, table_name, schema='public'):
+    """Obtém informações de colunas e contagem de registros."""
+    full_table_name = f"{schema}.{table_name}" if get_db_environment() == 'postgres' else table_name
     
-    # Conta registros
-    try:
-        cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
-        total_registros = cursor.fetchone()[0]
-    except:
-        total_registros = 0
+    if get_db_environment() == 'postgres':
+        cursor.execute("""
+            SELECT column_name as name, data_type as type
+            FROM information_schema.columns
+            WHERE table_schema = %s AND table_name = %s
+            ORDER BY ordinal_position;
+        """, (schema, table_name))
+        colunas_raw = cursor.fetchall()
+        colunas = [{'nome': col['name'], 'tipo': col['type']} for col in colunas_raw]
+    else: # sqlite
+        cursor.execute(f"PRAGMA table_info({table_name})")
+        colunas_raw = cursor.fetchall()
+        colunas = [{'nome': col['name'], 'tipo': col['type']} for col in colunas_raw]
     
-    return {
-        'colunas': [{'nome': col[1], 'tipo': col[2]} for col in colunas],
-        'total_registros': total_registros
-    }
+    cursor.execute(adaptar_query(f"SELECT COUNT(*) FROM {full_table_name}"))
+    total_registros = cursor.fetchone()[0]
+    
+    return {'colunas': colunas, 'total_registros': total_registros}
+
+# --- Rotas ---
 
 @visualizador_bp.route('/')
 def index():
-    """Página principal do visualizador"""
-    # Verifica status dos bancos
-    status_bancos = {}
-    for banco in ['saldos', 'lancamentos', 'dimensoes']:
-        db_path = get_db_path(banco)
-        if db_path and os.path.exists(db_path):
-            try:
-                conn = sqlite3.connect(db_path)
-                cursor = conn.cursor()
-                cursor.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table'")
-                num_tabelas = cursor.fetchone()[0]
-                conn.close()
-                status_bancos[banco] = {'existe': True, 'tabelas': num_tabelas}
-            except:
-                status_bancos[banco] = {'existe': True, 'tabelas': 0}
-        else:
-            status_bancos[banco] = {'existe': False, 'tabelas': 0}
-    
+    # Esta função já está corrigida e funcionando
+    env = get_db_environment()
+    status_bancos = {
+        'saldos': {'existe': False, 'tabelas': 0},
+        'lancamentos': {'existe': False, 'tabelas': 0},
+        'dimensoes': {'existe': False, 'tabelas': 0}
+    }
+    try:
+        if env == 'postgres':
+            with ConexaoBanco() as conn:
+                cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+                tabelas = get_table_list(cursor)
+                
+                for t in tabelas:
+                    if t['name'] == 'fato_saldos': status_bancos['saldos']['existe'] = True
+                    if t['name'] == 'lancamentos': status_bancos['lancamentos']['existe'] = True
+                    if t['schema'] == 'dimensoes': status_bancos['dimensoes']['existe'] = True
+                
+                if status_bancos['saldos']['existe']: status_bancos['saldos']['tabelas'] = len([t for t in tabelas if t['name'] in ['fato_saldos', 'dim_tempo'] and t['schema'] == 'public'])
+                if status_bancos['lancamentos']['existe']: status_bancos['lancamentos']['tabelas'] = len([t for t in tabelas if t['name'] == 'lancamentos' and t['schema'] == 'public'])
+                if status_bancos['dimensoes']['existe']: status_bancos['dimensoes']['tabelas'] = len([t for t in tabelas if t['schema'] == 'dimensoes'])
+        else: # sqlite
+            base_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'dados', 'db')
+            db_map = {
+                'saldos': 'banco_saldo_receita.db',
+                'lancamentos': 'banco_lancamento_receita.db',
+                'dimensoes': 'banco_dimensoes.db'
+            }
+            for banco, filename in db_map.items():
+                db_path = os.path.join(base_path, filename)
+                if os.path.exists(db_path):
+                    try:
+                        conn = sqlite3.connect(db_path)
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+                        status_bancos[banco] = {'existe': True, 'tabelas': cursor.fetchone()[0]}
+                        conn.close()
+                    except Exception as e:
+                        print(f"Erro ao verificar banco SQLite {banco}: {e}")
+    except Exception as e:
+        print(f"Erro ao verificar status dos bancos: {e}")
     return render_template('visualizador/index.html', status_bancos=status_bancos)
+
 
 @visualizador_bp.route('/estrutura/<db_name>')
 def estrutura_banco(db_name):
-    """Mostra a estrutura do banco de dados"""
-    db_path = get_db_path(db_name)
-    
-    if not db_path or not os.path.exists(db_path):
-        return jsonify({'erro': f'Banco {db_name} não encontrado'}), 404
-    
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    
-    # Lista todas as tabelas e views
-    cursor.execute("""
-        SELECT name, type FROM sqlite_master 
-        WHERE type IN ('table', 'view') 
-        AND name NOT LIKE 'sqlite_%'
-        ORDER BY type, name
-    """)
-    objetos = cursor.fetchall()
-    
     estrutura = {}
-    for nome, tipo in objetos:
-        info = get_table_info(cursor, nome)
-        info['tipo'] = tipo
-        estrutura[nome] = info
-    
-    conn.close()
-    
-    return render_template('visualizador/estrutura.html', 
-                         db_name=db_name, 
-                         estrutura=estrutura)
+    try:
+        with ConexaoBanco(db_name) as conn:
+            if get_db_environment() == 'postgres':
+                cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+            else:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+
+            tabelas_raw = get_table_list(cursor)
+            
+            for t_row in tabelas_raw:
+                t = dict(t_row)
+                info = get_table_info(cursor, t['name'], t.get('schema', 'main'))
+                info['tipo'] = t['type'].lower()
+                estrutura[t['name']] = info
+    except Exception as e:
+        traceback.print_exc()
+        return render_template('erro.html', mensagem=f"Erro ao buscar estrutura do banco: {e}")
+    return render_template('visualizador/estrutura.html', db_name=db_name, estrutura=estrutura)
+
 
 @visualizador_bp.route('/dados/<db_name>/<table_name>')
 def visualizar_dados(db_name, table_name):
-    """Visualiza dados de uma tabela específica"""
-    db_path = get_db_path(db_name)
-    
-    if not db_path or not os.path.exists(db_path):
-        return jsonify({'erro': f'Banco {db_name} não encontrado'}), 404
-    
-    # Parâmetros de paginação
     page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 100, type=int)
+    per_page = 100
     offset = (page - 1) * per_page
     
-    # Construção dinâmica de filtros
-    where_clauses = []
-    params = []
-    
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    
     try:
-        # Primeiro, descobre todas as colunas da tabela
-        cursor = conn.execute(f"PRAGMA table_info({table_name})")
-        colunas_info = cursor.fetchall()
-        colunas = [col[1] for col in colunas_info]
-        
-        # Define campos de filtro baseado no tipo de tabela
-        if table_name == 'lancamentos':
-            campos_filtro = ['COEXERCICIO', 'COUG', 'COEVENTO', 'COCONTACONTABIL', 
-                           'COCONTACORRENTE', 'INMES', 'COUGDESTINO', 'COUGCONTAB', 
-                           'CATEGORIARECEITA', 'COFONTERECEITA', 'COSUBFONTERECEITA', 
-                           'CORUBRICA', 'COALINE', 'COFONTE']
-        elif table_name == 'fato_saldos':
-            campos_filtro = ['CATEGORIA', 'ORIGEM', 'ESPECIE', 'ESPECIFICACAO', 
-                           'ALINEA', 'COEXERCICIO', 'INMES', 'COUG', 
-                           'COCONTACORRENTE', 'INTIPOADM', 'NOUG']
-        elif db_name == 'dimensoes':
-            # Para banco de dimensões, usa campos mais relevantes
-            if table_name in TABELAS_DIMENSAO_CONHECIDAS:
-                # Para tabelas conhecidas, usa a chave primária e descrição
-                campos_filtro = [col for col in colunas if col.startswith('CO') or col.startswith('NO')][:5]
+        with ConexaoBanco(db_name) as conn:
+            if get_db_environment() == 'postgres':
+                cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
             else:
-                # Para tabelas novas, usa os primeiros 5 campos
-                campos_filtro = colunas[:5]
-        else:
-            # Para outras tabelas, usa os primeiros 10 campos
-            campos_filtro = colunas[:10]
-        
-        # Garante que apenas campos existentes sejam usados
-        campos_filtro = [campo for campo in campos_filtro if campo in colunas]
-        
-        # Aplica filtros
-        for campo in campos_filtro:
-            valor = request.args.get(campo)
-            if valor:
-                where_clauses.append(f"{campo} = ?")
-                params.append(valor)
-        
-        # Monta cláusula WHERE
-        where_clause = " WHERE " + " AND ".join(where_clauses) if where_clauses else ""
-        
-        # Query para contar total de registros com filtros
-        count_query = f"SELECT COUNT(*) as total FROM {table_name} {where_clause}"
-        cursor = conn.execute(count_query, params)
-        total_registros = cursor.fetchone()['total']
-        
-        # Query para buscar dados paginados
-        data_query = f"""
-        SELECT * FROM {table_name} 
-        {where_clause}
-        LIMIT ? OFFSET ?
-        """
-        params_paginated = params + [per_page, offset]
-        
-        cursor = conn.execute(data_query, params_paginated)
-        dados = cursor.fetchall()
-        
-        # Converte para lista de dicionários
-        dados_lista = []
-        for row in dados:
-            dados_lista.append(dict(row))
-        
-        # Busca valores únicos para os campos de filtro
-        valores_unicos = {}
-        
-        for campo in campos_filtro:
-            try:
-                # Limita a 100 valores únicos por campo
-                query_unique = f"""
-                SELECT DISTINCT {campo} 
-                FROM {table_name} 
-                WHERE {campo} IS NOT NULL
-                ORDER BY {campo}
-                LIMIT 100
-                """
-                cursor = conn.execute(query_unique)
-                valores = [row[0] for row in cursor.fetchall()]
-                if valores:
-                    valores_unicos[campo] = valores
-            except:
-                pass
-        
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+
+            info = get_table_info(cursor, table_name)
+            colunas = [c['nome'] for c in info['colunas']]
+            total_registros = info['total_registros'] # Usaremos a contagem total para paginação
+
+            # Query para buscar dados paginados
+            query = f"SELECT * FROM {table_name} LIMIT {per_page} OFFSET {offset}"
+            query_adaptada = adaptar_query(query)
+
+            cursor.execute(query_adaptada)
+            dados = cursor.fetchall()
+
+            total_pages = (total_registros + per_page - 1) // per_page
+            
+            return render_template('visualizador/dados.html',
+                                 db_name=db_name, table_name=table_name, colunas=colunas, dados=dados,
+                                 page=page, total_pages=total_pages, total_registros=total_registros,
+                                 valores_unicos={}, campos_filtro=[])
     except Exception as e:
-        conn.close()
-        return jsonify({'erro': str(e)}), 500
-    
-    finally:
-        conn.close()
-    
-    # Calcula informações de paginação
-    total_pages = (total_registros + per_page - 1) // per_page
-    
-    return render_template('visualizador/dados.html',
-                         db_name=db_name,
-                         table_name=table_name,
-                         colunas=colunas,
-                         dados=dados_lista,
-                         page=page,
-                         per_page=per_page,
-                         total_registros=total_registros,
-                         total_pages=total_pages,
-                         valores_unicos=valores_unicos,
-                         campos_filtro=campos_filtro)
+        traceback.print_exc()
+        return render_template('erro.html', mensagem=f"Erro ao visualizar dados: {e}")
 
 @visualizador_bp.route('/query/<db_name>', methods=['GET', 'POST'])
 def executar_query(db_name):
-    """Permite executar queries SQL customizadas (apenas SELECT)"""
-    if request.method == 'GET':
-        # Lista tabelas disponíveis para ajudar o usuário
-        db_path = get_db_path(db_name)
-        tabelas_disponiveis = []
-        
-        if db_path and os.path.exists(db_path):
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT name FROM sqlite_master 
-                WHERE type IN ('table', 'view') 
-                AND name NOT LIKE 'sqlite_%'
-                ORDER BY name
-            """)
-            tabelas_disponiveis = [row[0] for row in cursor.fetchall()]
-            conn.close()
-        
-        return render_template('visualizador/query.html', 
-                             db_name=db_name,
-                             tabelas_disponiveis=tabelas_disponiveis)
-    
-    query = request.form.get('query', '').strip()
-    
-    # Validação básica de segurança - apenas permite SELECT
-    if not query.upper().startswith('SELECT'):
-        return jsonify({'erro': 'Apenas queries SELECT são permitidas'}), 400
-    
-    # Palavras proibidas
-    palavras_proibidas = ['DROP', 'DELETE', 'UPDATE', 'INSERT', 'ALTER', 'CREATE']
-    for palavra in palavras_proibidas:
-        if palavra in query.upper():
-            return jsonify({'erro': f'Query contém comando proibido: {palavra}'}), 400
-    
-    db_path = get_db_path(db_name)
-    if not db_path or not os.path.exists(db_path):
-        return jsonify({'erro': f'Banco {db_name} não encontrado'}), 404
-    
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    
+    tabelas_disponiveis = []
     try:
-        cursor = conn.execute(query)
-        dados = cursor.fetchall()
-        colunas = [description[0] for description in cursor.description] if cursor.description else []
-        
-        # Converte para lista de dicionários
-        dados_lista = []
-        for row in dados:
-            dados_lista.append(dict(row))
-        
-        conn.close()
-        
-        return render_template('visualizador/query_result.html',
-                             db_name=db_name,
-                             query=query,
-                             colunas=colunas,
-                             dados=dados_lista,
-                             total_registros=len(dados_lista))
-        
+        with ConexaoBanco(db_name) as conn:
+            if get_db_environment() == 'postgres':
+                cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+                tabelas_raw = get_table_list(cursor)
+                tabelas_disponiveis = [f"{t['schema']}.{t['name']}" for t in tabelas_raw]
+            else:
+                cursor = conn.cursor()
+                tabelas_raw = get_table_list(cursor)
+                tabelas_disponiveis = [t[0] for t in tabelas_raw]
     except Exception as e:
-        conn.close()
-        # Busca tabelas para mostrar na página de erro
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT name FROM sqlite_master 
-            WHERE type IN ('table', 'view') 
-            AND name NOT LIKE 'sqlite_%'
-            ORDER BY name
-        """)
-        tabelas_disponiveis = [row[0] for row in cursor.fetchall()]
-        conn.close()
-        
-        return render_template('visualizador/query.html', 
-                             db_name=db_name, 
-                             query=query,
-                             erro=str(e),
-                             tabelas_disponiveis=tabelas_disponiveis)
+        print(f"Erro ao listar tabelas para query: {e}")
+
+    if request.method == 'POST':
+        query = request.form.get('query', '').strip()
+        if not query.upper().startswith('SELECT'):
+            return render_template('visualizador/query.html', db_name=db_name, query=query, erro="Apenas queries SELECT são permitidas.", tabelas_disponiveis=tabelas_disponiveis)
+        try:
+            with ConexaoBanco(db_name) as conn:
+                if get_db_environment() == 'postgres':
+                    cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+                else:
+                    conn.row_factory = sqlite3.Row
+                    cursor = conn.cursor()
+                
+                query_adaptada = adaptar_query(query)
+                cursor.execute(query_adaptada)
+                dados = cursor.fetchall()
+                colunas = [desc[0] for desc in cursor.description] if dados else []
+                return render_template('visualizador/query_result.html',
+                                     db_name=db_name, query=query, colunas=colunas, dados=dados,
+                                     total_registros=len(dados))
+        except Exception as e:
+            return render_template('visualizador/query.html', db_name=db_name, query=query, erro=str(e), tabelas_disponiveis=tabelas_disponiveis)
+    return render_template('visualizador/query.html', db_name=db_name, tabelas_disponiveis=tabelas_disponiveis)
 
 @visualizador_bp.route('/exportar/<db_name>/<table_name>')
 def exportar_dados(db_name, table_name):
-    """Exporta dados para Excel com filtros aplicados"""
-    db_path = get_db_path(db_name)
-    
-    if not db_path or not os.path.exists(db_path):
-        return jsonify({'erro': f'Banco {db_name} não encontrado'}), 404
-    
-    # Constrói query com filtros
-    where_clauses = []
-    params = []
-    
-    # Aplica todos os filtros da URL
-    for key, value in request.args.items():
-        if key not in ['page', 'per_page'] and value:
-            where_clauses.append(f"{key} = ?")
-            params.append(value)
-    
-    where_clause = " WHERE " + " AND ".join(where_clauses) if where_clauses else ""
-    
-    # Usa pandas para facilitar a exportação
-    conn = sqlite3.connect(db_path)
-    query = f"SELECT * FROM {table_name} {where_clause}"
-    
     try:
-        df = pd.read_sql_query(query, conn, params=params)
-    except:
-        # Fallback sem parâmetros nomeados
-        query_final = query
-        for param in params:
-            query_final = query_final.replace('?', f"'{param}'", 1)
-        df = pd.read_sql_query(query_final, conn)
-    
-    conn.close()
-    
-    # Cria arquivo Excel em memória
-    from io import BytesIO
-    output = BytesIO()
-    
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, sheet_name=table_name[:31], index=False)
-        
-        # Adiciona informações sobre filtros em uma segunda aba
-        if where_clauses:
-            filtros_df = pd.DataFrame({
-                'Filtro': [key for key in request.args.keys() if key not in ['page', 'per_page'] and request.args.get(key)],
-                'Valor': [value for key, value in request.args.items() if key not in ['page', 'per_page'] and value]
-            })
-            filtros_df.to_excel(writer, sheet_name='Filtros Aplicados', index=False)
-    
-    output.seek(0)
-    
-    from flask import send_file
-    
-    # Nome do arquivo com indicação de filtros
-    filename_parts = [db_name, table_name]
-    if where_clauses:
-        filename_parts.append('filtrado')
-    filename_parts.append(pd.Timestamp.now().strftime('%Y%m%d_%H%M%S'))
-    
-    return send_file(
-        output,
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        as_attachment=True,
-        download_name=f"{'_'.join(filename_parts)}.xlsx"
-    )
+        with ConexaoBanco(db_name) as conn:
+            schema = 'dimensoes' if db_name == 'dimensoes' else 'public'
+            full_table_name = f"{schema}.{table_name}" if get_db_environment() == 'postgres' else table_name
+            df = pd.read_sql_query(f"SELECT * FROM {full_table_name}", conn)
+            output = BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                df.to_excel(writer, sheet_name=table_name[:31], index=False)
+            output.seek(0)
+            return send_file(
+                output,
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                as_attachment=True,
+                download_name=f"{db_name}_{table_name}.xlsx"
+            )
+    except Exception as e:
+        traceback.print_exc()
+        return render_template('erro.html', mensagem=f"Erro ao exportar dados: {e}")

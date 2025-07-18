@@ -30,18 +30,19 @@ def adaptar_query(query: str) -> str:
 class ConexaoBanco:
     """Gerenciador de contexto para garantir que a conexão seja sempre fechada."""
 
-    def __init__(self):
+    def __init__(self, db_name='saldos'):
         self.conn = None
         self.env = get_db_environment()
+        self.db_name = db_name
 
     def __enter__(self):
         if self.env == 'postgres':
+            # --- CORREÇÃO DA INDENTAÇÃO AQUI ---
             try:
                 database_url = os.environ.get('DATABASE_URL')
                 if not database_url:
                     raise ConnectionError("Variável de ambiente DATABASE_URL não encontrada.")
                 
-                # Garante que a URL está no formato correto para psycopg2
                 if database_url.startswith("postgres://"):
                     database_url = database_url.replace("postgres://", "postgresql://", 1)
                     
@@ -53,22 +54,30 @@ class ConexaoBanco:
             try:
                 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                 base_path = os.path.join(project_root, 'dados', 'db')
-                caminho_principal = os.path.join(base_path, 'banco_saldo_receita.db')
+                
+                db_files = {
+                    'saldos': 'banco_saldo_receita.db',
+                    'lancamentos': 'banco_lancamento_receita.db',
+                    'dimensoes': 'banco_dimensoes.db'
+                }
+                db_filename = db_files.get(self.db_name, 'banco_saldo_receita.db')
+                caminho_principal = os.path.join(base_path, db_filename)
 
                 if not os.path.exists(caminho_principal):
-                    raise FileNotFoundError(f"Banco de dados principal não encontrado: {caminho_principal}")
+                    raise FileNotFoundError(f"Banco de dados '{self.db_name}' não encontrado: {caminho_principal}")
 
                 self.conn = sqlite3.connect(caminho_principal)
                 self.conn.row_factory = sqlite3.Row
-
-                bancos_anexar = {
-                    'dimensoes': 'banco_dimensoes.db',
-                    'lancamentos_db': 'banco_lancamento_receita.db'
-                }
-                for alias, db_file in bancos_anexar.items():
-                    caminho_anexo = os.path.join(base_path, db_file)
-                    if os.path.exists(caminho_anexo):
-                        self.conn.execute(f"ATTACH DATABASE '{caminho_anexo}' AS {alias}")
+                
+                if self.db_name == 'saldos':
+                    bancos_anexar = {
+                        'dimensoes': 'banco_dimensoes.db',
+                        'lancamentos_db': 'banco_lancamento_receita.db'
+                    }
+                    for alias, db_file in bancos_anexar.items():
+                        caminho_anexo = os.path.join(base_path, db_file)
+                        if os.path.exists(caminho_anexo):
+                            self.conn.execute(f"ATTACH DATABASE '{caminho_anexo}' AS {alias}")
 
             except Exception as e:
                 print(f"Erro fatal ao conectar ou anexar bancos SQLite: {e}")
