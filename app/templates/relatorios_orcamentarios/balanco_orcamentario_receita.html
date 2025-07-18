@@ -835,7 +835,7 @@
                 <select id="seletor-coug" class="modern-select" onchange="mudarCOUG(this.value)">
                     <option value="">📊 DADOS CONSOLIDADOS</option>
                     {% for coug in cougs %}
-                    <option value="{{ coug.codigo }}" {% if coug_selecionada == coug.codigo %}selected{% endif %}>
+                    <option value="{{ coug.codigo }}" {% if coug_selecionada == coug.codigo|string %}selected{% endif %}>
                         🏛️ {{ coug.descricao_completa }}
                     </option>
                     {% endfor %}
