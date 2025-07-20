@@ -39,7 +39,12 @@ class BalancoOrcamentarioAnexo2:
     def _get_dados_base(self, tipo_receita_sql: str) -> pd.DataFrame:
         """Busca e calcula os valores base do banco de dados com a nova lógica de bimestres."""
         env = get_db_environment()
-        placeholder = '%' if env == 'postgres' else '?'
+        
+        # >>> INÍCIO DA CORREÇÃO <<<
+        # Ajusta o placeholder para o padrão do psycopg2 (%s)
+        placeholder = '%s' if env == 'postgres' else '?'
+        # >>> FIM DA CORREÇÃO <<<
+        
         inmes_column = "CAST(fs.inmes AS INTEGER)" if env == 'postgres' else "fs.inmes"
         coexercicio_column = "CAST(fs.coexercicio AS INTEGER)" if env == 'postgres' else "fs.coexercicio"
         
@@ -51,7 +56,7 @@ class BalancoOrcamentarioAnexo2:
         type_cast = "::text" if env == 'postgres' else ""
 
         # --- QUERY CORRIGIDA ---
-        # Adicionados parênteses em volta de {tipo_receita_sql} na cláusula WHERE
+        # A query agora é construída de forma segura, sem conflitos com a f-string
         query = f"""
         WITH saldos_agregados AS (
             SELECT
@@ -62,7 +67,7 @@ class BalancoOrcamentarioAnexo2:
                 SUM(CASE WHEN {inmes_column} IN ({placeholders_no_bimestre or 'NULL'}) AND fs.cocontacontabil BETWEEN '621200000' AND '621399999' THEN fs.saldo_contabil ELSE 0 END) as realizado_bimestre,
                 SUM(CASE WHEN {inmes_column} IN ({placeholders_ate_bimestre or 'NULL'}) AND fs.cocontacontabil BETWEEN '621200000' AND '621399999' THEN fs.saldo_contabil ELSE 0 END) as realizado_ate_bimestre
             FROM fato_saldos fs
-            WHERE {coexercicio_column} = {placeholder} AND ({tipo_receita_sql}) -- <<< PARÊNTESES ADICIONADOS AQUI
+            WHERE {coexercicio_column} = {placeholder} AND ({tipo_receita_sql})
             GROUP BY fs.cofontereceita, fs.cosubfontereceita
         )
         SELECT
