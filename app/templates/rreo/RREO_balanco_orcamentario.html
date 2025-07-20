@@ -19,23 +19,43 @@
 
     /* --- ESTILOS DE COR --- */
     .header-green {
-        background-color: #2E8B57; /* Verde Mar */
+        background-color: #2E8B57;
         color: #ffffff;
     }
-    .row-total-grupo, .row-total-geral {
-        font-weight: 700;
-        background-color: #8FBC8F; /* Verde Mar Escuro */
+    
+    /* IMPORTANTE: Use underscore, não hífen */
+    .row-total_grupo {
+        background-color: #8FBC8F !important;
     }
-    .row-total-grupo td, .row-total-geral td {
-    color: #2E8B57 !important; /* Verde escuro */
-    font-weight: 700 !important; /* Negrito */
+    
+    .row-total_geral {
+        background-color: #8FBC8F !important;
     }
+    
+    /* Força texto verde e negrito nas células */
+    .row-total_grupo td {
+        color: #2E8B57 !important;
+        font-weight: 700 !important;
+    }
+    
+    .row-total_geral td {
+        color: #2E8B57 !important;
+        font-weight: 700 !important;
+    }
+    
     .row-principal {
         font-weight: 700;
-        background-color: #98FB98; /* Verde Pálido */
+        background-color: #98FB98;
     }
-    .row-fonte, .row-fonte_sozinha { font-weight: 700; }
-    .row-subfonte td:first-child { padding-left: 2rem; }
+    
+    .row-fonte, .row-fonte_sozinha { 
+        font-weight: 700; 
+    }
+    
+    .row-subfonte td:first-child { 
+        padding-left: 2rem; 
+    }
+    
     .col-descricao { width: 35%; }
     .col-valor { white-space: nowrap; }
     .col-pct { width: 5%; }
