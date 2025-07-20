@@ -39,23 +39,19 @@ class BalancoOrcamentarioAnexo2:
     def _get_dados_base(self, tipo_receita_sql: str) -> pd.DataFrame:
         """Busca e calcula os valores base do banco de dados com a nova lógica de bimestres."""
         env = get_db_environment()
-        placeholder = '%s' if env == 'postgres' else '?'
+        placeholder = '%' if env == 'postgres' else '?'
         inmes_column = "CAST(fs.inmes AS INTEGER)" if env == 'postgres' else "fs.inmes"
-        
-        # >>> INÍCIO DA CORREÇÃO <<<
-        # Adiciona a conversão de tipo para a coluna coexercicio
         coexercicio_column = "CAST(fs.coexercicio AS INTEGER)" if env == 'postgres' else "fs.coexercicio"
-        # >>> FIM DA CORREÇÃO <<<
         
         placeholders_no_bimestre = ', '.join([placeholder] * len(self.meses_apenas_no_bimestre))
         placeholders_ate_bimestre = ', '.join([placeholder] * len(self.meses_ate_bimestre))
         
-        # A lista de parâmetros agora precisa incluir os meses para as previsões
         params = self.meses_ate_bimestre + self.meses_ate_bimestre + self.meses_apenas_no_bimestre + self.meses_ate_bimestre + [self.ano]
         
         type_cast = "::text" if env == 'postgres' else ""
 
-        # --- QUERY CORRIGIDA PARA APLICAR FILTRO DE BIMESTRE NAS PREVISÕES ---
+        # --- QUERY CORRIGIDA ---
+        # Adicionados parênteses em volta de {tipo_receita_sql} na cláusula WHERE
         query = f"""
         WITH saldos_agregados AS (
             SELECT
@@ -66,7 +62,7 @@ class BalancoOrcamentarioAnexo2:
                 SUM(CASE WHEN {inmes_column} IN ({placeholders_no_bimestre or 'NULL'}) AND fs.cocontacontabil BETWEEN '621200000' AND '621399999' THEN fs.saldo_contabil ELSE 0 END) as realizado_bimestre,
                 SUM(CASE WHEN {inmes_column} IN ({placeholders_ate_bimestre or 'NULL'}) AND fs.cocontacontabil BETWEEN '621200000' AND '621399999' THEN fs.saldo_contabil ELSE 0 END) as realizado_ate_bimestre
             FROM fato_saldos fs
-            WHERE {coexercicio_column} = {placeholder} AND {tipo_receita_sql}
+            WHERE {coexercicio_column} = {placeholder} AND ({tipo_receita_sql}) -- <<< PARÊNTESES ADICIONADOS AQUI
             GROUP BY fs.cofontereceita, fs.cosubfontereceita
         )
         SELECT
