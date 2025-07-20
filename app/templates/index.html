@@ -1,4 +1,4 @@
-{# /app/templates/index.html #}
+<!-- app/templates/index.html -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -28,7 +28,14 @@
         .modern-header h1 { font-size: 2.75rem; font-weight: 700; margin-bottom: 0.5rem; }
         .modern-header p { font-size: 1.25rem; opacity: 0.9; max-width: 700px; margin: auto; }
         .content-section { max-width: 1400px; margin: -2rem auto 3rem auto; padding: 0 2rem; position: relative; z-index: 10; }
-        .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; }
+        
+        /* Grid responsivo para 5 colunas */
+        .feature-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
+            gap: 1.5rem; 
+        }
+        
         .feature-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow-md); padding: 2rem; display: flex; flex-direction: column; transition: transform 0.2s ease, box-shadow 0.2s ease; }
         .feature-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-lg); }
         .card-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
@@ -44,6 +51,7 @@
         .icon-info .card-icon { background: linear-gradient(135deg, #0dcaf0, #0aa2c0); }
         .icon-success .card-icon { background: linear-gradient(135deg, #198754, #146c43); }
         .icon-warning .card-icon { background: linear-gradient(135deg, #ffc107, #d9a406); }
+        .icon-danger .card-icon { background: linear-gradient(135deg, #dc3545, #bd1825); }
         .info-alert { background-color: var(--secondary-light); border-left: 4px solid var(--primary-light); padding: 1.5rem; border-radius: var(--radius-sm); margin-top: 3rem; color: var(--gray-dark); }
         .info-alert h5 { color: var(--primary-color); margin: 0 0 0.5rem 0; font-size: 1rem; }
     </style>
@@ -92,6 +100,20 @@
                         </a>
                     </div>
                 </div>
+
+                <!-- CARD RREO -->
+                <div class="feature-card icon-danger">
+    <div class="card-header">
+        <div class="card-icon"><i class="fas fa-chart-bar"></i></div>
+        <div class="card-title"><h2>RREO</h2></div>
+    </div>
+    <div class="card-body">
+        <p>Relatório Resumido de Execução Orçamentária</p>
+        <a href="{{ url_for('anexo2.balanco_orcamentario_anexo2') }}" class="btn btn-primary">
+            Balanço Orçamentário Receita
+        </a>
+    </div>
+</div>
 
                 <div class="feature-card icon-warning">
                     <div class="card-header">

@@ -17,9 +17,12 @@ def create_app():
     from .routes_relatorios import relatorios_bp
     from .routes_visualizador import visualizador_bp
     from .routes_inconsistencias import inconsistencias_bp
+    from .routes_RREO import anexo2_bp  # NOVO: Importa o blueprint do RREO
+    
     app.register_blueprint(relatorios_bp)
     app.register_blueprint(visualizador_bp)
     app.register_blueprint(inconsistencias_bp)
+    app.register_blueprint(anexo2_bp)  # NOVO: Registra o blueprint do RREO
 
     # Adiciona a função obter_periodo_referencia ao contexto dos templates
     @app.context_processor

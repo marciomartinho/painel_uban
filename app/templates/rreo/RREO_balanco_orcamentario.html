@@ -1,0 +1,122 @@
+<!-- app/templates/rreo/balanco_orcamentario_anexo2.html -->
+{% extends "base.html" %}
+
+{% block title %}RREO - Anexo 2 - Balanço Orçamentário{% endblock %}
+
+{% block head %}
+<style>
+    body { background-color: #eef2f5; }
+    .report-container { background-color: #fff; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 1600px; margin: 2rem auto; }
+    .report-header { text-align: center; margin-bottom: 2rem; border-bottom: 2px solid #dee2e6; padding-bottom: 1.5rem; }
+    .report-header img { height: 70px; margin-bottom: 1rem; }
+    .report-header h1 { font-size: 1.5rem; font-weight: 600; margin: 0; }
+    .report-header p { font-size: 1rem; color: #6c757d; margin: 0; }
+    .filter-bar { padding: 1rem; background-color: #f8f9fa; border-radius: 8px; margin-bottom: 2rem; display: flex; justify-content: center; gap: 1rem; align-items: center; }
+    .report-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .report-table th, .report-table td { border: 1px solid #b0c4de; padding: 0.6rem; text-align: right; vertical-align: middle; }
+    .report-table th { font-weight: 700; text-align: center; }
+    .report-table td:first-child { text-align: left; }
+
+    /* --- ESTILOS DE COR --- */
+    .header-green {
+        background-color: #2E8B57; /* Verde Mar */
+        color: #ffffff;
+    }
+    .row-total-grupo, .row-total-geral {
+        font-weight: 700;
+        background-color: #8FBC8F; /* Verde Mar Escuro */
+    }
+    .row-total-grupo td, .row-total-geral td {
+    color: #2E8B57 !important; /* Verde escuro */
+    font-weight: 700 !important; /* Negrito */
+    }
+    .row-principal {
+        font-weight: 700;
+        background-color: #98FB98; /* Verde Pálido */
+    }
+    .row-fonte, .row-fonte_sozinha { font-weight: 700; }
+    .row-subfonte td:first-child { padding-left: 2rem; }
+    .col-descricao { width: 35%; }
+    .col-valor { white-space: nowrap; }
+    .col-pct { width: 5%; }
+</style>
+{% endblock %}
+
+{% block content %}
+{% macro format_value(value) %}
+    {% if value == 0 or value == 0.0 %} -
+    {% else %} {{ value|formatar_moeda }}
+    {% endif %}
+{% endmacro %}
+
+<div class="report-container">
+    <div class="report-header">
+        <img src="{{ url_for('static', filename='image/BRASAO.PNG') }}" alt="Brasão GDF">
+        <h1>DEMONSTRATIVO DA EXECUÇÃO ORÇAMENTÁRIA DA RECEITA</h1>
+        <p>Balanço Orçamentário - Governo do Distrito Federal</p>
+        <p>Exercício de {{ ano_selecionado }} - Até o {{ bimestre_selecionado }}º Bimestre</p>
+    </div>
+
+    <div class="filter-bar no-print">
+        <form method="get" class="form-inline">
+            <div class="form-group mx-2">
+                <label for="ano" class="mr-2">Ano:</label>
+                <select name="ano" id="ano" class="form-control form-control-sm"> 
+                    {% for ano in anos_disponiveis %}
+                    <option value="{{ ano }}" {% if ano == ano_selecionado %}selected{% endif %}>{{ ano }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group mx-2">
+                <label for="bimestre" class="mr-2">Bimestre:</label>
+                <select name="bimestre" id="bimestre" class="form-control form-control-sm"> 
+                    {% for i in range(1, 7) %}
+                    <option value="{{ i }}" {% if i == bimestre_selecionado %}selected{% endif %}>{{ i }}º Bimestre</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Filtrar</button>
+        </form>
+    </div>
+
+    <table class="report-table">
+        <thead>
+            <tr class="header-green">
+                <th rowspan="2" class="col-descricao">RECEITAS</th>
+                <th rowspan="2" class="col-valor">PREVISÃO INICIAL</th>
+                <th rowspan="2" class="col-valor">PREVISÃO ATUALIZADA (a)</th>
+                <th colspan="4">RECEITAS REALIZADAS</th>
+                <th rowspan="2" class="col-valor">SALDO (a-c)</th>
+            </tr>
+            <tr class="header-green">
+                <th class="col-valor">NO BIMESTRE (b)</th>
+                <th class="col-pct">% (b/a)</th>
+                <th class="col-valor">ATÉ O BIMESTRE (c)</th>
+                <th class="col-pct">% (c/a)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% macro render_row(linha) %}
+            <tr class="row-{{ linha.tipo }}">
+                <td style="padding-left: {{ (linha.nivel) * 1.5 }}rem;">{{ linha.descricao }}</td>
+                <td>{{ format_value(linha.previsao_inicial) }}</td>
+                <td>{{ format_value(linha.previsao_atualizada) }}</td>
+                <td>{{ format_value(linha.realizado_bimestre) }}</td>
+                <td>{{ "%.2f"|format(linha.pct_bimestre)|replace('.', ',') if linha.pct_bimestre else '-' }}</td>
+                <td>{{ format_value(linha.realizado_ate_bimestre) }}</td>
+                <td>{{ "%.2f"|format(linha.pct_ate_bimestre)|replace('.', ',') if linha.pct_ate_bimestre else '-' }}</td>
+                <td>{{ format_value(linha.saldo) }}</td>
+            </tr>
+            {% endmacro %}
+            
+            {{ render_row(dados.total_exceto_intra) }}
+            {% for linha in dados.linhas_correntes %}{{ render_row(linha) }}{% endfor %}
+            {% for linha in dados.linhas_capital %}{{ render_row(linha) }}{% endfor %}
+            {{ render_row(dados.total_intra) }}
+        </tbody>
+        <tfoot>
+            {{ render_row(dados.total_geral) }}
+        </tfoot>
+    </table>
+</div>
+{% endblock %}
