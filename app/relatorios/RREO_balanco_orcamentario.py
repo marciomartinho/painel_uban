@@ -4,6 +4,7 @@ Módulo para gerar o Demonstrativo da Execução Orçamentária da Receita.
 Versão com a regra de cálculo de bimestres ACUMULADA para TODAS as colunas.
 """
 import pandas as pd
+# Certifique-se de que esta importação está correta no seu projeto
 from ..modulos.conexao_hibrida import ConexaoBanco, adaptar_query, get_db_environment
 
 class BalancoOrcamentarioAnexo2:
@@ -20,10 +21,8 @@ class BalancoOrcamentarioAnexo2:
             4: [7, 8], 5: [9, 10], 6: [11, 12]
         }
         
-        # Meses APENAS para o bimestre selecionado (para a coluna "NO BIMESTRE")
         self.meses_apenas_no_bimestre = self.bimestre_map.get(self.bimestre, [])
         
-        # Meses ACUMULADOS até o bimestre selecionado (para as outras colunas)
         self.meses_ate_bimestre = []
         for i in range(1, self.bimestre + 1):
             self.meses_ate_bimestre.extend(self.bimestre_map.get(i, []))
@@ -39,12 +38,7 @@ class BalancoOrcamentarioAnexo2:
     def _get_dados_base(self, tipo_receita_sql: str) -> pd.DataFrame:
         """Busca e calcula os valores base do banco de dados com a nova lógica de bimestres."""
         env = get_db_environment()
-        
-        # >>> INÍCIO DA CORREÇÃO <<<
-        # Ajusta o placeholder para o padrão do psycopg2 (%s)
         placeholder = '%s' if env == 'postgres' else '?'
-        # >>> FIM DA CORREÇÃO <<<
-        
         inmes_column = "CAST(fs.inmes AS INTEGER)" if env == 'postgres' else "fs.inmes"
         coexercicio_column = "CAST(fs.coexercicio AS INTEGER)" if env == 'postgres' else "fs.coexercicio"
         
@@ -55,8 +49,6 @@ class BalancoOrcamentarioAnexo2:
         
         type_cast = "::text" if env == 'postgres' else ""
 
-        # --- QUERY CORRIGIDA ---
-        # A query agora é construída de forma segura, sem conflitos com a f-string
         query = f"""
         WITH saldos_agregados AS (
             SELECT
@@ -80,7 +72,6 @@ class BalancoOrcamentarioAnexo2:
         WHERE sa.previsao_atualizada != 0 OR sa.realizado_ate_bimestre != 0
         ORDER BY sa.cofontereceita, sa.cosubfontereceita;
         """
-        
         return self._executar_query(query, params)
 
     def _processar_hierarquia(self, df: pd.DataFrame, tipo_receita_principal: str) -> list:
@@ -118,14 +109,29 @@ class BalancoOrcamentarioAnexo2:
     def gerar_relatorio(self) -> dict:
         df_correntes = self._get_dados_base("fs.cofontereceita BETWEEN '11' AND '19'")
         linhas_correntes = self._processar_hierarquia(df_correntes, "RECEITAS CORRENTES")
+        
         df_capital = self._get_dados_base("fs.cofontereceita BETWEEN '21' AND '29'")
         linhas_capital = self._processar_hierarquia(df_capital, "RECEITAS DE CAPITAL")
+        
         total_correntes = linhas_correntes[0] if linhas_correntes else {}
         total_capital = linhas_capital[0] if linhas_capital else {}
+        
         total_exceto_intra = {k: total_correntes.get(k, 0) + total_capital.get(k, 0) for k in total_correntes if isinstance(total_correntes.get(k), (int, float))}
         linha_total_exceto_intra = self._criar_linha(pd.Series(total_exceto_intra), "RECEITAS (EXCETO INTRA-ORÇAMENTÁRIAS) (I)", 'total_grupo', 0)
-        df_intra = self._get_dados_base("fs.cofontereceita LIKE '7%' OR fs.cofontereceita LIKE '8%'")
+        
+        # No PostgreSQL, os wildcards '%' no LIKE precisam ser escapados para '%%'
+        # para não conflitarem com os placeholders de parâmetros '%s' do psycopg2.
+        env = get_db_environment()
+        if env == 'postgres':
+            intra_receita_sql = "fs.cofontereceita LIKE '7%%' OR fs.cofontereceita LIKE '8%%'"
+        else:
+            # No SQLite, o placeholder é '?' e não há conflito.
+            intra_receita_sql = "fs.cofontereceita LIKE '7%' OR fs.cofontereceita LIKE '8%'"
+            
+        df_intra = self._get_dados_base(intra_receita_sql)
+        
         total_intra = self._criar_linha(df_intra.sum(numeric_only=True), "RECEITAS (INTRA-ORÇAMENTÁRIAS) (II)", 'principal', 0)
+        
         total_geral_valores = {k: total_exceto_intra.get(k, 0) + total_intra.get(k, 0) for k in total_exceto_intra}
         total_geral = self._criar_linha(pd.Series(total_geral_valores), "TOTAL DAS RECEITAS (I + II)", 'total_geral', 0)
         
