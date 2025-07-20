@@ -2,7 +2,7 @@
 """Gerenciamento do período de referência para relatórios - Versão híbrida"""
 
 from datetime import datetime
-from app.modulos.conexao_hibrida import ConexaoBanco, adaptar_query
+from app.modulos.conexao_hibrida import ConexaoBanco, adaptar_query, get_db_environment
 
 # Cache simples para evitar múltiplas leituras do banco na mesma requisição
 _cache_periodo = None
@@ -16,8 +16,13 @@ def obter_periodo_referencia(force_reload=False):
     try:
         with ConexaoBanco() as conn:
             cursor = conn.cursor()
-            # Tenta primeiro na tabela fato_saldos
-            query = "SELECT MAX(COEXERCICIO * 100 + INMES) as mes_ano FROM fato_saldos"
+            
+            # CORREÇÃO: Adiciona type cast para PostgreSQL
+            if get_db_environment() == 'postgres':
+                query = "SELECT MAX(COEXERCICIO::integer * 100 + INMES::integer) as mes_ano FROM fato_saldos"
+            else:
+                query = "SELECT MAX(COEXERCICIO * 100 + INMES) as mes_ano FROM fato_saldos"
+                
             query_adaptada = adaptar_query(query)
             
             try:
@@ -27,7 +32,11 @@ def obter_periodo_referencia(force_reload=False):
                 res_val = resultado['mes_ano'] if isinstance(resultado, dict) else resultado[0]
             except Exception:
                 # Se falhar, tenta na tabela de lançamentos (para SQLite local)
-                query = "SELECT MAX(COEXERCICIO * 100 + INMES) as mes_ano FROM lancamentos_db.lancamentos"
+                if get_db_environment() == 'postgres':
+                    query = "SELECT MAX(COEXERCICIO::integer * 100 + INMES::integer) as mes_ano FROM lancamentos"
+                else:
+                    query = "SELECT MAX(COEXERCICIO * 100 + INMES) as mes_ano FROM lancamentos_db.lancamentos"
+                    
                 query_adaptada = adaptar_query(query)
                 cursor.execute(query_adaptada)
                 resultado = cursor.fetchone()

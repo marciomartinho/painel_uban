@@ -320,27 +320,42 @@ def api_lancamentos_receita_fonte():
             if not all([ano, mes, coug, coalinea]):
                 return jsonify({"erro": "Parâmetros obrigatórios faltando (ano, mes, coug, coalinea)"}), 400
             
-            query_sql = f"""
-                SELECT 
-                    cocontacontabil, coug, nudocumento, coevento, indebitocredito, valancamento
-                FROM lancamentos
-                WHERE coexercicio = ?
-                  AND inmes <= ?
-                  AND cougcontab = ?
-                  AND coalinea = ?
-                  AND ({get_filtro_conta('RECEITA_LIQUIDA')})
-            """
+            # CORREÇÃO: Adiciona type casts para PostgreSQL
+            if get_db_environment() == 'postgres':
+                query_sql = f"""
+                    SELECT 
+                        cocontacontabil, coug, nudocumento, coevento, indebitocredito, valancamento
+                    FROM lancamentos
+                    WHERE coexercicio::integer = %s
+                      AND inmes::integer <= %s
+                      AND cougcontab = %s
+                      AND coalinea = %s
+                      AND ({get_filtro_conta('RECEITA_LIQUIDA')})
+                """
+            else:
+                query_sql = f"""
+                    SELECT 
+                        cocontacontabil, coug, nudocumento, coevento, indebitocredito, valancamento
+                    FROM lancamentos
+                    WHERE coexercicio = ?
+                      AND inmes <= ?
+                      AND cougcontab = ?
+                      AND coalinea = ?
+                      AND ({get_filtro_conta('RECEITA_LIQUIDA')})
+                """
             
             query_params = [ano, mes, coug, coalinea]
             if cofonte:
-                query_sql += " AND cofonte = ?"
+                if get_db_environment() == 'postgres':
+                    query_sql += " AND cofonte = %s"
+                else:
+                    query_sql += " AND cofonte = ?"
                 query_params.append(cofonte)
             
             query_sql += " ORDER BY nudocumento, coevento"
             
             query_adaptada = adaptar_query(query_sql)
             
-            # --- CORREÇÃO FINAL AQUI ---
             if get_db_environment() == 'postgres':
                 cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
             else:
