@@ -2,6 +2,7 @@ import pandas as pd
 import sqlite3
 import os
 import time
+import numpy as np
 
 # --- CONFIGURAÇÃO ---
 if os.path.basename(os.getcwd()) == 'scripts':
@@ -15,28 +16,136 @@ CAMINHO_DB = os.path.join(BASE_DIR, 'dados', 'db')
 
 os.makedirs(CAMINHO_DB, exist_ok=True)
 
+# Configurações de otimização
+CHUNK_SIZE = 50000  # Processar 50k linhas por vez
+
 # Colunas necessárias do Excel
 COLUNAS_EXCEL = [
     'COEXERCICIO', 'COUG', 'NUDOCUMENTO', 'COEVENTO', 'COCONTACONTABIL',
     'INMES', 'VALANCAMENTO', 'INDEBITOCREDITO', 'COUGCONTAB', 'COCONTACORRENTE'
 ]
 
-def extrair_campos_cocontacorrente(df):
-    """Extrai os campos do cocontacorrente e remove a coluna original"""
-    print("  - Extraindo campos do cocontacorrente...")
-    df['cocontacorrente'] = df['cocontacorrente'].astype(str).str.strip()
-    df['categoriareceita'] = df['cocontacorrente'].str[0:1]
-    df['cofontereceita'] = df['cocontacorrente'].str[0:2]
-    df['cosubfontereceita'] = df['cocontacorrente'].str[0:3]
-    df['corubrica'] = df['cocontacorrente'].str[0:4]
-    df['coalinea'] = df['cocontacorrente'].str[0:6]
-    df['cofonte'] = df['cocontacorrente'].str[8:17]
+# Tipos de dados otimizados
+DTYPE_MAP = {
+    'COEXERCICIO': 'int16',
+    'INMES': 'int8',
+    'INDEBITOCREDITO': 'category'
+}
+
+def processar_valor_monetario_vetorizado(serie):
+    """
+    Processa valores monetários de forma vetorizada (mais rápida)
+    """
+    # Converte para string apenas os não-numéricos
+    mask_str = serie.apply(lambda x: isinstance(x, str))
+    
+    # Processa valores string
+    if mask_str.any():
+        valores_str = serie[mask_str].astype(str).str.strip()
+        valores_str = valores_str.str.replace('R$', '', regex=False)
+        valores_str = valores_str.str.replace('$', '', regex=False)
+        valores_str = valores_str.str.strip()
+        
+        # Detecta formato brasileiro (vírgula como decimal)
+        mask_br = valores_str.str.contains(',') & ~valores_str.str.contains('\.')
+        mask_us = ~mask_br
+        
+        # Processa formato brasileiro
+        valores_str.loc[mask_br] = valores_str.loc[mask_br].str.replace('.', '', regex=False)
+        valores_str.loc[mask_br] = valores_str.loc[mask_br].str.replace(',', '.', regex=False)
+        
+        # Processa formato americano
+        valores_str.loc[mask_us] = valores_str.loc[mask_us].str.replace(',', '', regex=False)
+        
+        # Converte para float
+        serie.loc[mask_str] = pd.to_numeric(valores_str, errors='coerce')
+    
+    # Converte valores numéricos diretos
+    return pd.to_numeric(serie, errors='coerce').fillna(0).astype('float32')
+
+def extrair_campos_cocontacorrente_vetorizado(df):
+    """Extrai os campos do cocontacorrente de forma vetorizada"""
+    print("  - Extraindo campos do cocontacorrente (vetorizado)...")
+    
+    cc = df['cocontacorrente'].astype(str).str.strip()
+    
+    # Extração vetorizada - muito mais rápida
+    df['categoriareceita'] = cc.str[0:1]
+    df['cofontereceita'] = cc.str[0:2]
+    df['cosubfontereceita'] = cc.str[0:3]
+    df['corubrica'] = cc.str[0:4]
+    df['coalinea'] = cc.str[0:6]
+    df['cofonte'] = cc.str[8:17]
+    
     df = df.drop('cocontacorrente', axis=1)
-    print("    ✅ Campos extraídos e coluna original removida!")
+    print("    ✅ Campos extraídos!")
     return df
 
+def processar_chunk(chunk, chunk_num):
+    """Processa um chunk de dados"""
+    print(f"  - Processando chunk {chunk_num} ({len(chunk):,} registros)...")
+    
+    # Converte colunas para minúsculas
+    chunk.columns = [col.lower() for col in chunk.columns]
+    
+    # Processa valores monetários de forma vetorizada
+    if 'valancamento' in chunk.columns:
+        chunk['valancamento'] = processar_valor_monetario_vetorizado(chunk['valancamento'])
+    
+    # Extrai campos do cocontacorrente
+    if 'cocontacorrente' in chunk.columns:
+        chunk = extrair_campos_cocontacorrente_vetorizado(chunk)
+    
+    return chunk
+
+def processar_excel_em_chunks(arquivo_excel, chunk_size=50000):
+    """
+    Lê arquivo Excel em chunks manualmente
+    """
+    # Primeiro, descobre o número total de linhas
+    print("  - Analisando arquivo Excel...")
+    
+    # Lê apenas as primeiras linhas para pegar os headers
+    df_header = pd.read_excel(arquivo_excel, nrows=0)
+    colunas_disponiveis = [col for col in COLUNAS_EXCEL if col in df_header.columns]
+    
+    # Conta o número total de linhas (pode demorar um pouco)
+    print("  - Contando total de registros...")
+    df_count = pd.read_excel(arquivo_excel, usecols=[0])  # Lê apenas primeira coluna para contar
+    total_rows = len(df_count)
+    print(f"  - Total de registros: {total_rows:,}")
+    
+    # Processa em chunks
+    chunks_processados = []
+    for start_row in range(0, total_rows, chunk_size):
+        end_row = min(start_row + chunk_size, total_rows)
+        
+        print(f"\n  - Lendo linhas {start_row:,} a {end_row:,}...")
+        
+        # Lê o chunk
+        if start_row == 0:
+            # Primeira leitura inclui header
+            chunk = pd.read_excel(
+                arquivo_excel,
+                usecols=colunas_disponiveis,
+                nrows=chunk_size,
+                dtype=DTYPE_MAP
+            )
+        else:
+            # Leituras subsequentes pulam o header
+            chunk = pd.read_excel(
+                arquivo_excel,
+                usecols=colunas_disponiveis,
+                skiprows=range(1, start_row + 1),  # Pula header + linhas anteriores
+                nrows=chunk_size,
+                header=0,
+                dtype=DTYPE_MAP
+            )
+        
+        yield chunk, start_row // chunk_size
+
 def processar_lancamentos():
-    """Processa o arquivo de lançamentos e cria o banco de dados otimizado"""
+    """Processa o arquivo de lançamentos com otimizações"""
     print("=" * 60)
     print("CONVERSOR OTIMIZADO DE LANÇAMENTOS DE RECEITA")
     print("=" * 60)
@@ -58,60 +167,105 @@ def processar_lancamentos():
         os.remove(caminho_db)
         print("Banco antigo removido.")
     
+    # Conecta com otimizações
+    conn = sqlite3.connect(caminho_db)
+    cursor = conn.cursor()
+    
+    # Configurações de performance do SQLite
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA synchronous=NORMAL")
+    cursor.execute("PRAGMA cache_size=10000")
+    cursor.execute("PRAGMA temp_store=MEMORY")
+    
     print("\n--- Processando Lançamentos ---")
     
     try:
-        print("  - Lendo arquivo Excel...")
-        df_test = pd.read_excel(arquivo_excel, nrows=5)
-        colunas_disponiveis = [col for col in COLUNAS_EXCEL if col in df_test.columns]
+        # Estima tamanho do arquivo
+        file_size = os.path.getsize(arquivo_excel)
+        print(f"  - Arquivo de {file_size / 1024 / 1024:.1f} MB")
         
-        # Lê o arquivo sem forçar o tipo de todas as colunas
-        df = pd.read_excel(arquivo_excel, usecols=colunas_disponiveis)
+        first_chunk = True
+        total_processed = 0
+        valores_min = float('inf')
+        valores_max = float('-inf')
+        valores_soma = 0
         
-        df.columns = [col.lower() for col in df.columns]
-        print("  - Nomes de colunas convertidos para minúsculas.")
-        
-        # <<< CORREÇÃO: Tratar os tipos de dados após a leitura >>>
-        print("  - Ajustando tipos de dados...")
-        for col in df.columns:
-            if col == 'valancamento':
-                # Converte VALANCAMENTO para número, tratando erros
-                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-                print(f"    - '{col}' convertida para numérico.")
+        # Processa em chunks
+        for chunk, chunk_num in processar_excel_em_chunks(arquivo_excel, CHUNK_SIZE):
+            # Processa o chunk
+            chunk_processado = processar_chunk(chunk, chunk_num)
+            
+            # Estatísticas
+            if 'valancamento' in chunk_processado.columns:
+                valores_chunk = chunk_processado['valancamento']
+                valores_nao_zero = valores_chunk[valores_chunk != 0]
+                if len(valores_nao_zero) > 0:
+                    valores_min = min(valores_min, valores_nao_zero.min())
+                    valores_max = max(valores_max, valores_nao_zero.max())
+                    valores_soma += valores_nao_zero.sum()
+            
+            # Salva no banco
+            if first_chunk:
+                chunk_processado.to_sql('lancamentos', conn, if_exists='replace', index=False)
+                first_chunk = False
             else:
-                # Converte as outras para texto para garantir consistência
-                df[col] = df[col].astype(str)
-                print(f"    - '{col}' convertida para texto.")
-
-        print(f"  - Total de registros: {len(df):,}")
+                chunk_processado.to_sql('lancamentos', conn, if_exists='append', index=False)
+            
+            total_processed += len(chunk)
+            
+            # Mostra progresso
+            elapsed = time.time() - start_time
+            rate = total_processed / elapsed if elapsed > 0 else 0
+            print(f"    ✓ Total processado: {total_processed:,} registros ({rate:.0f} registros/seg)")
+            
+            # Commit periodicamente
+            if chunk_num % 5 == 0:
+                conn.commit()
         
-        if 'cocontacorrente' not in df.columns:
-            print("\n❌ ERRO: Coluna 'cocontacorrente' não encontrada no arquivo Excel!")
-            return
+        print(f"\n  📊 Estatísticas dos valores:")
+        print(f"     Menor valor: R$ {valores_min:,.2f}")
+        print(f"     Maior valor: R$ {valores_max:,.2f}")
+        print(f"     Soma total: R$ {valores_soma:,.2f}")
         
-        df = extrair_campos_cocontacorrente(df)
+        print("\n  - Criando índices otimizados...")
         
-        conn = sqlite3.connect(caminho_db)
+        # Desabilita temporariamente algumas verificações
+        cursor.execute("PRAGMA foreign_keys=OFF")
         
-        print("\n  - Salvando no banco de dados...")
-        df.to_sql('lancamentos', conn, if_exists='replace', index=False, chunksize=10000)
+        indices = [
+            ("idx_lancamento_periodo", "coexercicio, inmes"),
+            ("idx_lancamento_alinea", "coalinea"),
+            ("idx_lancamento_fonte", "cofonte"),
+            ("idx_lancamento_conta", "cocontacontabil"),
+            ("idx_lancamento_ug", "coug"),
+            ("idx_lancamento_valor", "valancamento")
+        ]
         
-        print("\n  - Criando índices...")
-        cursor = conn.cursor()
-        indices = ["coalinea", "cofonte", "cocontacontabil", "coug", "coexercicio", "inmes"]
-        for col in indices:
-            cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_lancamento_{col} ON lancamentos ({col})")
+        for idx_name, idx_cols in indices:
+            print(f"    - Criando {idx_name}...")
+            cursor.execute(f"CREATE INDEX IF NOT EXISTS {idx_name} ON lancamentos ({idx_cols})")
+        
+        # Otimização final
+        print("\n  - Otimizando banco de dados...")
+        cursor.execute("ANALYZE")
+        cursor.execute("VACUUM")
         
         conn.commit()
         conn.close()
         
         end_time = time.time()
-        print(f"\n✅ Processamento concluído em {end_time - start_time:.2f} segundos!")
+        tempo_total = end_time - start_time
+        
+        print(f"\n✅ Processamento concluído!")
+        print(f"   Total de registros: {total_processed:,}")
+        print(f"   Tempo total: {tempo_total:.2f} segundos")
+        print(f"   Taxa média: {total_processed/tempo_total:.0f} registros/segundo")
         
     except Exception as e:
         print(f"\n❌ ERRO durante o processamento: {e}")
         import traceback
         traceback.print_exc()
+        conn.close()
 
 if __name__ == "__main__":
     processar_lancamentos()

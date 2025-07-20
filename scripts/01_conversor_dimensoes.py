@@ -17,7 +17,6 @@ CAMINHO_DB = os.path.join(BASE_DIR, 'dados', 'db')
 # Criar pasta db se não existir
 os.makedirs(CAMINHO_DB, exist_ok=True)
 
-# <<< CORREÇÃO: Chaves primárias também em minúsculas para consistência >>>
 TABELAS_DIMENSAO = {
     'categorias': {
         'arquivo': 'receita_categoria.csv',
@@ -81,7 +80,6 @@ def ler_csv_com_encoding_correto(arquivo_csv):
         for sep in separadores:
             try:
                 df = pd.read_csv(arquivo_csv, encoding=encoding, on_bad_lines='skip', sep=sep, dtype=str)
-                # Verifica se o separador funcionou (mais de uma coluna)
                 if len(df.columns) > 1:
                     print(f"   📝 Encoding: {encoding}, Separador: '{sep}'")
                     return df
@@ -94,7 +92,7 @@ def criar_banco_dimensoes():
     """Cria o banco de dados com todas as tabelas de dimensão"""
     
     print("=" * 60)
-    print("CONVERSOR DE TABELAS DIMENSÃO (PADRONIZADO)")
+    print("CONVERSOR OTIMIZADO DE TABELAS DIMENSÃO")
     print("=" * 60)
     
     start_time = time.time()
@@ -109,10 +107,19 @@ def criar_banco_dimensoes():
         os.remove(caminho_db)
         print("Banco antigo removido.")
     
+    # Conecta com configurações otimizadas
     conn = sqlite3.connect(caminho_db)
     cursor = conn.cursor()
     
+    # Otimizações do SQLite
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA synchronous=NORMAL")
+    cursor.execute("PRAGMA cache_size=10000")
+    cursor.execute("PRAGMA temp_store=MEMORY")
+    
     print("\n--- Processando Tabelas Dimensão ---")
+    
+    total_registros = 0
     
     for nome_tabela, info in TABELAS_DIMENSAO.items():
         arquivo_csv = os.path.join(CAMINHO_DADOS_BRUTOS, info['arquivo'])
@@ -121,32 +128,49 @@ def criar_banco_dimensoes():
         
         if os.path.exists(arquivo_csv):
             try:
+                inicio_tabela = time.time()
+                
                 df = ler_csv_com_encoding_correto(arquivo_csv)
                 
-                # <<< CORREÇÃO CRÍTICA: Converter nomes das colunas para minúsculas >>>
+                # Converter nomes das colunas para minúsculas
                 df.columns = [col.lower() for col in df.columns]
-                print(f"   - Nomes de colunas convertidos para minúsculas: {', '.join(df.columns)}")
+                print(f"   - Nomes de colunas convertidos para minúsculas")
 
+                # Salva no banco
                 df.to_sql(nome_tabela, conn, if_exists='replace', index=False)
                 
-                # Cria índice na chave primária (já em minúsculas)
+                # Cria índice na chave primária
                 chave_primaria = info['chave_primaria']
                 if chave_primaria in df.columns:
                     cursor.execute(f"CREATE INDEX IF NOT EXISTS idx_{nome_tabela}_{chave_primaria} ON {nome_tabela} ({chave_primaria})")
                 
-                print(f"   ✅ Tabela '{nome_tabela}' criada com {len(df)} registros.")
+                tempo_tabela = time.time() - inicio_tabela
+                registros = len(df)
+                total_registros += registros
+                
+                print(f"   ✅ Tabela '{nome_tabela}' criada com {registros:,} registros em {tempo_tabela:.2f}s")
                 
             except Exception as e:
                 print(f"   ❌ Erro ao processar: {e}")
         else:
             print(f"   ⚠️  Arquivo não encontrado!")
-
+    
+    # Otimiza o banco após todas as inserções
+    print("\n🔧 Otimizando banco de dados...")
+    cursor.execute("ANALYZE")
+    cursor.execute("VACUUM")
+    
     conn.commit()
     conn.close()
     
     end_time = time.time()
-    print(f"\n⏱️  Tempo total: {end_time - start_time:.2f} segundos")
-    print(f"💾 Banco de dimensões criado/atualizado em: {os.path.abspath(caminho_db)}")
+    tempo_total = end_time - start_time
+    
+    print(f"\n📊 Estatísticas finais:")
+    print(f"   Total de registros: {total_registros:,}")
+    print(f"   Tempo total: {tempo_total:.2f} segundos")
+    print(f"   Taxa média: {total_registros/tempo_total:.0f} registros/segundo")
+    print(f"\n💾 Banco de dimensões criado em: {os.path.abspath(caminho_db)}")
 
 if __name__ == "__main__":
     criar_banco_dimensoes()

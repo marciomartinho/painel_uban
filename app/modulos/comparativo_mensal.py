@@ -9,7 +9,7 @@ from typing import List, Dict, Optional
 
 from app.modulos.formatacao import formatar_moeda, formatar_percentual
 from app.modulos.regras_contabeis_receita import get_filtro_conta, FILTROS_RELATORIO_ESPECIAIS
-from app.modulos.conexao_hibrida import adaptar_query
+from app.modulos.conexao_hibrida import adaptar_query, get_db_environment
 
 
 class ComparativoMensalAcumulado:
@@ -36,10 +36,12 @@ class ComparativoMensalAcumulado:
         
         where_clause = " AND " + " AND ".join(filtros_sql) if filtros_sql else ""
         
-        # <<< CORREÇÃO: Nomes de colunas em minúsculas >>>
+        # --- CORREÇÃO APLICADA AQUI ---
+        type_cast_numeric = "::integer" if get_db_environment() == 'postgres' else ""
+        
         query_original = f"""
         WITH meses AS (
-            SELECT DISTINCT inmes, nome_mes FROM dim_tempo WHERE coexercicio = {ano}
+            SELECT DISTINCT inmes, nome_mes FROM dim_tempo WHERE coexercicio{type_cast_numeric} = {ano}
         ),
         receitas_mensais AS (
             SELECT
@@ -48,7 +50,7 @@ class ComparativoMensalAcumulado:
                 SUM(saldo_contabil) as receita_liquida
             FROM fato_saldos fs
             WHERE
-                coexercicio IN ({ano}, {ano - 1})
+                coexercicio{type_cast_numeric} IN ({ano}, {ano - 1})
                 AND {get_filtro_conta('RECEITA_LIQUIDA')}
                 {where_clause}
             GROUP BY coexercicio, inmes
@@ -56,32 +58,27 @@ class ComparativoMensalAcumulado:
         SELECT
             m.inmes,
             m.nome_mes,
-            (SELECT SUM(r.receita_liquida) FROM receitas_mensais r WHERE r.coexercicio = {ano} AND r.inmes <= m.inmes) as receita_atual,
-            (SELECT SUM(r.receita_liquida) FROM receitas_mensais r WHERE r.coexercicio = {ano - 1} AND r.inmes <= m.inmes) as receita_anterior
+            (SELECT SUM(r.receita_liquida) FROM receitas_mensais r WHERE r.coexercicio{type_cast_numeric} = {ano} AND r.inmes{type_cast_numeric} <= m.inmes{type_cast_numeric}) as receita_atual,
+            (SELECT SUM(r.receita_liquida) FROM receitas_mensais r WHERE r.coexercicio{type_cast_numeric} = {ano - 1} AND r.inmes{type_cast_numeric} <= m.inmes{type_cast_numeric}) as receita_anterior
         FROM meses m
-        ORDER BY m.inmes
+        ORDER BY m.inmes{type_cast_numeric}
         """
         
         query_adaptada = adaptar_query(query_original)
         
         cursor = self.conn.cursor()
         
-        # <<< CORREÇÃO: Usar RealDictCursor ou equivalente para obter dicionários >>>
-        # A classe ConexaoBanco já deve lidar com isso. Apenas garantindo que o processamento seja robusto.
         try:
             cursor.execute(query_adaptada)
-            # Tenta obter colunas do cursor para mapeamento dinâmico
             colunas = [desc[0].lower() for desc in cursor.description]
             resultados = [dict(zip(colunas, row)) for row in cursor.fetchall()]
         except Exception:
-            # Fallback para o método antigo se o de cima falhar
             cursor.execute(query_adaptada)
+            # Fallback se a obtenção de colunas falhar (para conexões mais simples)
             resultados = [dict(row) for row in cursor.fetchall()]
-
 
         dados_finais = []
         for row in resultados:
-            # Garante que as chaves estão em minúsculas
             row_lower = {k.lower(): v for k, v in row.items()}
             
             receita_atual = row_lower.get('receita_atual') or 0

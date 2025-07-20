@@ -112,7 +112,10 @@ class ProcessadorDadosReceita:
             campo = regra['campo_filtro']
             valores_str = ", ".join([f"'{v}'" for v in regra['valores']])
             filtro_dinamico = f"AND fs.{campo} IN ({valores_str})"
-        type_cast = "::text" if get_db_environment() == 'postgres' else ""
+        
+        # --- CORREÇÃO APLICADA AQUI ---
+        type_cast_text = "::text" if get_db_environment() == 'postgres' else ""
+        type_cast_numeric = "::integer" if get_db_environment() == 'postgres' else ""
 
         return f"""
         WITH dados_agregados AS (
@@ -131,10 +134,10 @@ class ProcessadorDadosReceita:
                 SUM(CASE WHEN {get_filtro_conta('PREVISAO_ATUALIZADA_LIQUIDA')} THEN COALESCE(fs.saldo_contabil, 0) ELSE 0 END) as previsao_atualizada,
                 SUM(CASE WHEN {get_filtro_conta('RECEITA_LIQUIDA')} THEN COALESCE(fs.saldo_contabil, 0) ELSE 0 END) as receita_liquida
             FROM fato_saldos fs
-            LEFT JOIN dimensoes.categorias cat ON fs.categoriareceita{type_cast} = cat.cocategoriareceita
-            LEFT JOIN dimensoes.origens ori ON fs.cofontereceita{type_cast} = ori.cofontereceita
-            LEFT JOIN dimensoes.especies esp ON fs.cosubfontereceita{type_cast} = esp.cosubfontereceita
-            LEFT JOIN dimensoes.alineas ali ON fs.coalinea{type_cast} = ali.coalinea
+            LEFT JOIN dimensoes.categorias cat ON fs.categoriareceita{type_cast_text} = cat.cocategoriareceita
+            LEFT JOIN dimensoes.origens ori ON fs.cofontereceita{type_cast_text} = ori.cofontereceita
+            LEFT JOIN dimensoes.especies esp ON fs.cosubfontereceita{type_cast_text} = esp.cosubfontereceita
+            LEFT JOIN dimensoes.alineas ali ON fs.coalinea{type_cast_text} = ali.coalinea
             WHERE 1=1 {filtro_coug} {filtro_dinamico}
             GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
         ),
@@ -142,12 +145,12 @@ class ProcessadorDadosReceita:
             SELECT
                 categoriareceita, nome_categoria, cofontereceita, nome_fonte,
                 cosubfontereceita, nome_subfonte, coalinea, nome_alinea,
-                SUM(CASE WHEN coexercicio = {ano} THEN previsao_inicial ELSE 0 END) as previsao_inicial,
-                SUM(CASE WHEN coexercicio = {ano} THEN previsao_atualizada ELSE 0 END) as previsao_atualizada,
-                SUM(CASE WHEN coexercicio = {ano} AND inmes <= {mes} THEN receita_liquida ELSE 0 END) as receita_atual,
-                SUM(CASE WHEN coexercicio = {ano-1} AND inmes <= {mes} THEN receita_liquida ELSE 0 END) as receita_anterior
+                SUM(CASE WHEN coexercicio{type_cast_numeric} = {ano} THEN previsao_inicial ELSE 0 END) as previsao_inicial,
+                SUM(CASE WHEN coexercicio{type_cast_numeric} = {ano} THEN previsao_atualizada ELSE 0 END) as previsao_atualizada,
+                SUM(CASE WHEN coexercicio{type_cast_numeric} = {ano} AND inmes{type_cast_numeric} <= {mes} THEN receita_liquida ELSE 0 END) as receita_atual,
+                SUM(CASE WHEN coexercicio{type_cast_numeric} = {ano-1} AND inmes{type_cast_numeric} <= {mes} THEN receita_liquida ELSE 0 END) as receita_anterior
             FROM dados_agregados
-            WHERE coexercicio IN ({ano}, {ano-1})
+            WHERE coexercicio{type_cast_numeric} IN ({ano}, {ano-1})
             GROUP BY 1, 2, 3, 4, 5, 6, 7, 8
         )
         SELECT * FROM dados_calculados
