@@ -1,47 +1,27 @@
-# app/__init__.py
-
-from flask import Flask, render_template
-from .modulos.periodo import obter_periodo_referencia
 import os
+from flask import Flask
+from .modulos.formatacao import formatar_moeda, formatar_percentual
+from config import Config # <-- MUDANÇA 1: Importa a classe Config diretamente
 
 def create_app():
-    """Cria e configura uma instância da aplicação Flask."""
-    app = Flask(__name__,
-                template_folder='templates',
-                static_folder='static')
+    app = Flask(__name__)
 
-    # Configurações da aplicação
-    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
+    # MUDANÇA 2: Carrega as configurações diretamente da sua classe Config
+    app.config.from_object(Config)
 
-    # Importa e registra TODOS os blueprints
-    from .routes_relatorios import relatorios_bp
+    # Registra os filtros de template
+    app.jinja_env.filters['formatar_moeda'] = formatar_moeda
+    app.jinja_env.filters['formatar_percentual'] = formatar_percentual
+
+    # Importa e registra os blueprints
     from .routes_visualizador import visualizador_bp
+    from .routes_relatorios import relatorios_bp
     from .routes_inconsistencias import inconsistencias_bp
-    from .routes_RREO import anexo2_bp  # NOVO: Importa o blueprint do RREO
+    from .routes_RREO import rreo_bp
     
-    app.register_blueprint(relatorios_bp)
     app.register_blueprint(visualizador_bp)
+    app.register_blueprint(relatorios_bp)
     app.register_blueprint(inconsistencias_bp)
-    app.register_blueprint(anexo2_bp)  # NOVO: Registra o blueprint do RREO
-
-    # Adiciona a função obter_periodo_referencia ao contexto dos templates
-    @app.context_processor
-    def inject_periodo():
-        return {'obter_periodo_referencia': obter_periodo_referencia}
-
-    # Define a rota principal AQUI
-    @app.route('/')
-    def index():
-        periodo = obter_periodo_referencia()
-        return render_template('index.html', periodo=periodo)
-
-    # Tratamento de erros
-    @app.errorhandler(404)
-    def page_not_found(e):
-        return render_template('erro.html', mensagem='Página não encontrada.'), 404
-
-    @app.errorhandler(500)
-    def internal_error(e):
-        return render_template('erro.html', mensagem='Ocorreu um erro interno no servidor.'), 500
+    app.register_blueprint(rreo_bp)
 
     return app

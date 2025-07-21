@@ -2,12 +2,12 @@
 import os
 
 class Config:
-    # Detecta se está no Railway (produção) ou local
-    if os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('DATABASE_URL'):
-        # Produção - PostgreSQL no Railway (todos os dados em um banco)
-        DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://postgres:uzVUcFKomVccdwGGtwrGeyOHWcrjxiIu@postgres.railway.internal:5432/railway')
+    # Detecta se está no servidor (produção) ou local
+    if os.environ.get('DATABASE_URL'):
+        # Produção - PostgreSQL na sua VPS
+        DATABASE_URL = os.environ.get('DATABASE_URL')
         DATABASE_TYPE = 'postgresql'
-        print("🚀 Usando PostgreSQL (Railway)")
+        print("🚀 Usando PostgreSQL (Servidor)")
     else:
         # Local - SQLite (3 bancos separados)
         DATABASE_TYPE = 'sqlite'
@@ -25,6 +25,5 @@ def get_config_info():
     config = Config()
     return {
         'database_type': config.DATABASE_TYPE,
-        'is_railway': bool(os.environ.get('RAILWAY_ENVIRONMENT')),
         'has_database_url': bool(os.environ.get('DATABASE_URL'))
     }

@@ -1,4 +1,3 @@
-<!-- app/templates/rreo/balanco_orcamentario_anexo2.html -->
 {% extends "base.html" %}
 
 {% block title %}RREO - Anexo 2 - Balanço Orçamentário{% endblock %}
@@ -23,22 +22,11 @@
         color: #ffffff;
     }
     
-    /* IMPORTANTE: Use underscore, não hífen */
-    .row-total_grupo {
+    .row-total_grupo, .row-total_geral {
         background-color: #8FBC8F !important;
     }
     
-    .row-total_geral {
-        background-color: #8FBC8F !important;
-    }
-    
-    /* Força texto verde e negrito nas células */
-    .row-total_grupo td {
-        color: #2E8B57 !important;
-        font-weight: 700 !important;
-    }
-    
-    .row-total_geral td {
+    .row-total_grupo td, .row-total_geral td {
         color: #2E8B57 !important;
         font-weight: 700 !important;
     }
@@ -54,6 +42,15 @@
     
     .row-subfonte td:first-child { 
         padding-left: 2rem; 
+    }
+
+    .row-white, .row-white-parent, .row-white-child {
+        background-color: #ffffff !important;
+        font-weight: 700;
+    }
+
+    .row-white-child td:first-child {
+        padding-left: 2rem;
     }
     
     .col-descricao { width: 35%; }
@@ -135,7 +132,12 @@
             {{ render_row(dados.total_intra) }}
         </tbody>
         <tfoot>
-            {{ render_row(dados.total_geral) }}
+            {{ render_row(dados.total_receitas_iii) }}
+            {{ render_row(dados.linha_deficit) }}
+            {{ render_row(dados.total_v) }}
+            {{ render_row(dados.saldos_exercicios_anteriores) }}
+            {{ render_row(dados.linha_rpps) }}
+            {{ render_row(dados.linha_superavit) }}
         </tfoot>
     </table>
 </div>

@@ -64,20 +64,69 @@ def processar_valor_monetario_vetorizado(serie):
     return pd.to_numeric(serie, errors='coerce').fillna(0).astype('float32')
 
 def extrair_campos_cocontacorrente_vetorizado(df):
-    """Extrai os campos do cocontacorrente de forma vetorizada"""
+    """
+    Extrai campos do cocontacorrente de forma vetorizada,
+    tratando os formatos de 17 e 38 dígitos.
+    """
     print("  - Extraindo campos do cocontacorrente (vetorizado)...")
     
     cc = df['cocontacorrente'].astype(str).str.strip()
     
-    # Extração vetorizada - muito mais rápida
-    df['categoriareceita'] = cc.str[0:1]
-    df['cofontereceita'] = cc.str[0:2]
-    df['cosubfontereceita'] = cc.str[0:3]
-    df['corubrica'] = cc.str[0:4]
-    df['coalinea'] = cc.str[0:6]
-    df['cofonte'] = cc.str[8:17]
+    # --- Inicializa todas as colunas possíveis com valores nulos ---
+    # Colunas da regra de 17 dígitos
+    df['categoriareceita'] = pd.NA
+    df['cofontereceita'] = pd.NA
+    df['cosubfontereceita'] = pd.NA
+    df['corubrica'] = pd.NA
+    df['coalinea'] = pd.NA
+    # Colunas da regra de 38 dígitos
+    df['inesfera'] = pd.NA
+    df['couo'] = pd.NA
+    df['cofuncao'] = pd.NA
+    df['cosubfuncao'] = pd.NA
+    df['coprograma'] = pd.NA
+    df['coprojeto'] = pd.NA
+    df['cosubtitulo'] = pd.NA
+    df['conatureza'] = pd.NA
+    df['incategoria'] = pd.NA
+    df['cogrupo'] = pd.NA
+    df['comodalidade'] = pd.NA
+    df['coelemento'] = pd.NA
+    # Coluna comum
+    df['cofonte'] = pd.NA
+
+    # --- Cria máscaras para identificar o tamanho do código ---
+    mask_17 = cc.str.len() == 17
+    mask_38 = cc.str.len() == 38
     
-    df = df.drop('cocontacorrente', axis=1)
+    # --- Aplica a regra para códigos de 17 dígitos ---
+    if mask_17.any():
+        cc_17 = cc[mask_17]
+        df.loc[mask_17, 'categoriareceita'] = cc_17.str[0:1]
+        df.loc[mask_17, 'cofontereceita'] = cc_17.str[0:2]
+        df.loc[mask_17, 'cosubfontereceita'] = cc_17.str[0:3]
+        df.loc[mask_17, 'corubrica'] = cc_17.str[0:4]
+        df.loc[mask_17, 'coalinea'] = cc_17.str[0:6]
+        df.loc[mask_17, 'cofonte'] = cc_17.str[8:17]
+
+    # --- Aplica a regra para códigos de 38 dígitos ---
+    if mask_38.any():
+        cc_38 = cc[mask_38]
+        df.loc[mask_38, 'inesfera'] = cc_38.str[0:1]
+        df.loc[mask_38, 'couo'] = cc_38.str[1:6]
+        df.loc[mask_38, 'cofuncao'] = cc_38.str[6:8]
+        df.loc[mask_38, 'cosubfuncao'] = cc_38.str[8:11]
+        df.loc[mask_38, 'coprograma'] = cc_38.str[11:15]
+        df.loc[mask_38, 'coprojeto'] = cc_38.str[15:19]
+        df.loc[mask_38, 'cosubtitulo'] = cc_38.str[19:23]
+        df.loc[mask_38, 'cofonte'] = cc_38.str[23:32]  # Sobrescreve a coluna cofonte
+        df.loc[mask_38, 'conatureza'] = cc_38.str[32:38]
+        df.loc[mask_38, 'incategoria'] = cc_38.str[32:33]
+        df.loc[mask_38, 'cogrupo'] = cc_38.str[33:34]
+        df.loc[mask_38, 'comodalidade'] = cc_38.str[34:36]
+        df.loc[mask_38, 'coelemento'] = cc_38.str[36:38]
+        
+    df = df.drop('cocontacorrente', axis=1, errors='ignore')
     print("    ✅ Campos extraídos!")
     return df
 
@@ -223,9 +272,10 @@ def processar_lancamentos():
                 conn.commit()
         
         print(f"\n  📊 Estatísticas dos valores:")
-        print(f"     Menor valor: R$ {valores_min:,.2f}")
-        print(f"     Maior valor: R$ {valores_max:,.2f}")
-        print(f"     Soma total: R$ {valores_soma:,.2f}")
+        if valores_min != float('inf'):
+            print(f"     Menor valor: R$ {valores_min:,.2f}")
+            print(f"     Maior valor: R$ {valores_max:,.2f}")
+            print(f"     Soma total: R$ {valores_soma:,.2f}")
         
         print("\n  - Criando índices otimizados...")
         

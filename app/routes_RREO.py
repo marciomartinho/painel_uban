@@ -1,63 +1,64 @@
-# app/routes_RREO.py
-"""
-Rotas para o relatório Demonstrativo da Execução Orçamentária da Receita (Anexo 2).
-"""
-
-from flask import Blueprint, render_template, request
-import traceback
+import math
+from flask import render_template, request, Blueprint
+from app.relatorios.RREO_balanco_orcamentario import BalancoOrcamentarioAnexo2
+from app.modulos.conexao_hibrida import ConexaoBanco, adaptar_query
+import pandas as pd
 from datetime import datetime
 
-# Tente um import mais específico
-try:
-    from app.relatorios.RREO_balanco_orcamentario import BalancoOrcamentarioAnexo2
-except ImportError:
-    # Se falhar, tente import relativo
-    from .relatorios.RREO_balanco_orcamentario import BalancoOrcamentarioAnexo2
+# Se você já tem um blueprint definido, pode usar o mesmo
+# Se não, este é um exemplo de como criar um
+rreo_bp = Blueprint('rreo', __name__, url_prefix='/rreo')
 
-# Cria o Blueprint para este relatório específico
-anexo2_bp = Blueprint(
-    'anexo2',
-    __name__,
-    url_prefix='/rreo'
-)
-
-@anexo2_bp.route('/anexo2')
-def balanco_orcamentario_anexo2():
-    """
-    Renderiza a página do Demonstrativo da Execução Orçamentária da Receita.
-    """
+def _get_periodo_padrao():
+    """Busca no banco o último ano e bimestre com dados para usar como filtro padrão."""
     try:
-        ano_atual = datetime.now().year
-        ano = request.args.get('ano', default=ano_atual, type=int)
-        
-        mes_atual = datetime.now().month
-        bimestre_atual = (mes_atual + 1) // 2
-        bimestre = request.args.get('bimestre', default=bimestre_atual, type=int)
+        with ConexaoBanco() as conn:
+            # Busca o último ano que tenha registros
+            query_ano = "SELECT MAX(CAST(coexercicio AS INTEGER)) as ano FROM fato_saldos"
+            df_ano = pd.read_sql_query(adaptar_query(query_ano), conn)
+            # Se não houver dados, usa o ano atual como padrão
+            ano_padrao = df_ano['ano'].iloc[0] if not df_ano.empty and not pd.isna(df_ano['ano'].iloc[0]) else datetime.now().year
 
-        relatorio_builder = BalancoOrcamentarioAnexo2(ano=ano, bimestre=bimestre)
-        dados_relatorio = relatorio_builder.gerar_relatorio()
-
-        anos_disponiveis = range(ano_atual, ano_atual - 5, -1)
-        
-        return render_template(
-            'rreo/RREO_balanco_orcamentario.html',  # Nome ajustado
-            dados=dados_relatorio,
-            ano_selecionado=ano,
-            bimestre_selecionado=bimestre,
-            anos_disponiveis=anos_disponiveis
-        )
+            # Com o último ano, busca o último mês de registro
+            query_mes = "SELECT MAX(CAST(inmes AS INTEGER)) as mes FROM fato_saldos WHERE CAST(coexercicio AS INTEGER) = ?"
+            params_mes = [int(ano_padrao)]
+            df_mes = pd.read_sql_query(adaptar_query(query_mes), conn, params=params_mes)
+            # Se não houver, usa o mês 1 como padrão
+            mes_padrao = df_mes['mes'].iloc[0] if not df_mes.empty and not pd.isna(df_mes['mes'].iloc[0]) else 1
+            
+            # Calcula o bimestre a partir do mês (Ex: Mês 6 / 2 = 3º Bi; Mês 7 / 2 = 3.5 -> 4º Bi)
+            bimestre_padrao = math.ceil(mes_padrao / 2)
+            
+            return int(ano_padrao), int(bimestre_padrao)
     except Exception as e:
-        traceback.print_exc()
-        return render_template('erro.html', mensagem=f"Erro ao gerar o relatório do Anexo 2: {e}")
+        print(f"Erro ao buscar período padrão: {e}")
+        # Em caso de qualquer erro, retorna um valor padrão seguro
+        return datetime.now().year, 1
 
-@anexo2_bp.app_template_filter('formatar_moeda')
-def formatar_moeda_filter(valor):
-    """Filtro para formatar valores monetários"""
-    if valor is None or valor == 0:
-        return "-"
+@rreo_bp.route('/anexo2')
+def balanco_orcamentario_anexo2():
+    """ Rota para o Anexo 2 do RREO - Balanço Orçamentário da Receita. """
     
-    # Formata o valor como moeda brasileira
-    valor_formatado = f"{valor:,.2f}"
-    # Substitui separadores para padrão brasileiro
-    valor_formatado = valor_formatado.replace(',', '_').replace('.', ',').replace('_', '.')
-    return f"R$ {valor_formatado}"
+    # Define o período padrão dinamicamente
+    ano_padrao, bimestre_padrao = _get_periodo_padrao()
+    
+    # Pega os valores do filtro da URL ou usa o padrão
+    ano_selecionado = request.args.get('ano', default=ano_padrao, type=int)
+    bimestre_selecionado = request.args.get('bimestre', default=bimestre_padrao, type=int)
+
+    # Busca os anos disponíveis para popular o dropdown do filtro
+    with ConexaoBanco() as conn:
+        df_anos = pd.read_sql_query(adaptar_query("SELECT DISTINCT CAST(coexercicio AS INTEGER) as ano FROM fato_saldos ORDER BY ano DESC"), conn)
+        anos_disponiveis = df_anos['ano'].tolist() if not df_anos.empty else [datetime.now().year]
+
+    # Gera os dados do relatório
+    relatorio_builder = BalancoOrcamentarioAnexo2(ano=ano_selecionado, bimestre=bimestre_selecionado)
+    dados_relatorio = relatorio_builder.gerar_relatorio()
+
+    return render_template(
+        'rreo/RREO_balanco_orcamentario.html',
+        dados=dados_relatorio,
+        ano_selecionado=ano_selecionado,
+        bimestre_selecionado=bimestre_selecionado,
+        anos_disponiveis=anos_disponiveis
+    )

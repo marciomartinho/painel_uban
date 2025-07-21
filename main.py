@@ -1,12 +1,19 @@
-# main.py
 from app import create_app
-import os
+from flask import render_template, redirect, url_for
 
-# A aplicação agora é criada pela fábrica em app/__init__.py
 app = create_app()
 
+# Rota principal adicionada aqui
+@app.route('/')
+def index():
+    """
+    Esta função define o que acontece quando alguém acessa a página inicial.
+    Ela simplesmente renderiza o seu template principal 'index.html'.
+    """
+    # Se o seu template principal estiver em outro caminho, ajuste aqui.
+    # Ex: 'visualizador/index.html'
+    return render_template('index.html')
+
 if __name__ == '__main__':
-    # Define a porta para compatibilidade com a Railway e outros serviços
-    port = int(os.environ.get('PORT', 5000))
-    # Roda em modo de desenvolvimento local
-    app.run(debug=True, host='0.0.0.0', port=port)
+    # O host='0.0.0.0' permite que você acesse de outros dispositivos na mesma rede
+    app.run(host='0.0.0.0', port=5000, debug=True)
