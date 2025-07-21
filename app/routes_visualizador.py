@@ -59,12 +59,13 @@ def get_table_info(cursor, table_name, schema):
 
 @visualizador_bp.route('/')
 def index():
-    # Esta função já está corrigida e funcionando
     env = get_db_environment()
     status_bancos = {
         'saldos': {'existe': False, 'tabelas': 0},
         'lancamentos': {'existe': False, 'tabelas': 0},
-        'dimensoes': {'existe': False, 'tabelas': 0}
+        'dimensoes': {'existe': False, 'tabelas': 0},
+        'saldos_despesa': {'existe': False, 'tabelas': 0},      # NOVO
+        'lancamentos_despesa': {'existe': False, 'tabelas': 0}  # NOVO
     }
     try:
         if env == 'postgres':
@@ -76,17 +77,29 @@ def index():
                 for t in tabelas:
                     if t['table_name'] == 'fato_saldos': status_bancos['saldos']['existe'] = True
                     if t['table_name'] == 'lancamentos': status_bancos['lancamentos']['existe'] = True
+                    if t['table_name'] == 'fato_saldo_despesa': status_bancos['saldos_despesa']['existe'] = True      # NOVO
+                    if t['table_name'] == 'fato_lancamento_despesa': status_bancos['lancamentos_despesa']['existe'] = True  # NOVO
                     if t['table_schema'] == 'dimensoes': status_bancos['dimensoes']['existe'] = True
                 
-                if status_bancos['saldos']['existe']: status_bancos['saldos']['tabelas'] = len([t for t in tabelas if t['table_name'] in ['fato_saldos', 'dim_tempo'] and t['table_schema'] == 'public'])
-                if status_bancos['lancamentos']['existe']: status_bancos['lancamentos']['tabelas'] = len([t for t in tabelas if t['table_name'] == 'lancamentos' and t['table_schema'] == 'public'])
-                if status_bancos['dimensoes']['existe']: status_bancos['dimensoes']['tabelas'] = len([t for t in tabelas if t['table_schema'] == 'dimensoes'])
+                # Conta tabelas para cada banco
+                if status_bancos['saldos']['existe']: 
+                    status_bancos['saldos']['tabelas'] = len([t for t in tabelas if t['table_name'] in ['fato_saldos', 'dim_tempo'] and t['table_schema'] == 'public'])
+                if status_bancos['lancamentos']['existe']: 
+                    status_bancos['lancamentos']['tabelas'] = len([t for t in tabelas if t['table_name'] == 'lancamentos' and t['table_schema'] == 'public'])
+                if status_bancos['saldos_despesa']['existe']: 
+                    status_bancos['saldos_despesa']['tabelas'] = len([t for t in tabelas if t['table_name'] == 'fato_saldo_despesa' and t['table_schema'] == 'public'])
+                if status_bancos['lancamentos_despesa']['existe']: 
+                    status_bancos['lancamentos_despesa']['tabelas'] = len([t for t in tabelas if t['table_name'] == 'fato_lancamento_despesa' and t['table_schema'] == 'public'])
+                if status_bancos['dimensoes']['existe']: 
+                    status_bancos['dimensoes']['tabelas'] = len([t for t in tabelas if t['table_schema'] == 'dimensoes'])
         else: # sqlite
             base_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'dados', 'db')
             db_map = {
                 'saldos': 'banco_saldo_receita.db',
                 'lancamentos': 'banco_lancamento_receita.db',
-                'dimensoes': 'banco_dimensoes.db'
+                'dimensoes': 'banco_dimensoes.db',
+                'saldos_despesa': 'banco_saldo_despesa.db',          # NOVO
+                'lancamentos_despesa': 'banco_lancamento_despesa.db'  # NOVO
             }
             for banco, filename in db_map.items():
                 db_path = os.path.join(base_path, filename)
@@ -102,7 +115,6 @@ def index():
     except Exception as e:
         print(f"Erro ao verificar status dos bancos: {e}")
     return render_template('visualizador/index.html', status_bancos=status_bancos)
-
 
 @visualizador_bp.route('/estrutura/<db_name>')
 def estrutura_banco(db_name):

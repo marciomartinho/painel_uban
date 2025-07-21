@@ -24,6 +24,9 @@ def adaptar_query(query: str) -> str:
         # Para Postgres, só precisamos trocar o placeholder e remover o alias do SQLite
         query = query.replace('?', '%s')
         query = query.replace('lancamentos_db.', '')
+        # ADICIONE ESTA LINHA para remover prefixos de despesa também
+        query = query.replace('lancamentos_despesa_db.', '')
+        query = query.replace('saldos_despesa_db.', '')
     # Para SQLite, a query original com "dimensoes." e "?" já funciona
     return query
 
@@ -37,7 +40,6 @@ class ConexaoBanco:
 
     def __enter__(self):
         if self.env == 'postgres':
-            # --- CORREÇÃO DA INDENTAÇÃO AQUI ---
             try:
                 database_url = os.environ.get('DATABASE_URL')
                 if not database_url:
@@ -55,10 +57,13 @@ class ConexaoBanco:
                 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                 base_path = os.path.join(project_root, 'dados', 'db')
                 
+                # ATUALIZAÇÃO: Inclui os novos bancos de despesa
                 db_files = {
                     'saldos': 'banco_saldo_receita.db',
                     'lancamentos': 'banco_lancamento_receita.db',
-                    'dimensoes': 'banco_dimensoes.db'
+                    'dimensoes': 'banco_dimensoes.db',
+                    'saldos_despesa': 'banco_saldo_despesa.db',         # NOVO
+                    'lancamentos_despesa': 'banco_lancamento_despesa.db' # NOVO
                 }
                 db_filename = db_files.get(self.db_name, 'banco_saldo_receita.db')
                 caminho_principal = os.path.join(base_path, db_filename)
@@ -69,15 +74,30 @@ class ConexaoBanco:
                 self.conn = sqlite3.connect(caminho_principal)
                 self.conn.row_factory = sqlite3.Row
                 
+                # ATUALIZAÇÃO: Lógica de anexação para cada banco
                 if self.db_name == 'saldos':
                     bancos_anexar = {
                         'dimensoes': 'banco_dimensoes.db',
                         'lancamentos_db': 'banco_lancamento_receita.db'
                     }
-                    for alias, db_file in bancos_anexar.items():
-                        caminho_anexo = os.path.join(base_path, db_file)
-                        if os.path.exists(caminho_anexo):
-                            self.conn.execute(f"ATTACH DATABASE '{caminho_anexo}' AS {alias}")
+                elif self.db_name == 'saldos_despesa':
+                    # Para saldos de despesa, anexa dimensões
+                    bancos_anexar = {
+                        'dimensoes': 'banco_dimensoes.db',
+                        'lancamentos_despesa_db': 'banco_lancamento_despesa.db'
+                    }
+                elif self.db_name == 'lancamentos_despesa':
+                    # Para lançamentos de despesa, anexa dimensões
+                    bancos_anexar = {
+                        'dimensoes': 'banco_dimensoes.db'
+                    }
+                else:
+                    bancos_anexar = {}
+                
+                for alias, db_file in bancos_anexar.items():
+                    caminho_anexo = os.path.join(base_path, db_file)
+                    if os.path.exists(caminho_anexo):
+                        self.conn.execute(f"ATTACH DATABASE '{caminho_anexo}' AS {alias}")
 
             except Exception as e:
                 print(f"Erro fatal ao conectar ou anexar bancos SQLite: {e}")
