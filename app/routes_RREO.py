@@ -1,6 +1,7 @@
 import math
 from flask import render_template, request, Blueprint
-from app.relatorios.RREO_balanco_orcamentario import BalancoOrcamentarioAnexo2
+from app.relatorios.RREO_receita import BalancoOrcamentarioAnexo2  # CORRIGIDO: era RREO_balanco_orcamentario
+from app.relatorios.calculo_superavit_deficit import CalculoSuperavitDeficit  # NOVO IMPORT
 from app.modulos.conexao_hibrida import ConexaoBanco, adaptar_query
 import pandas as pd
 from datetime import datetime
@@ -55,9 +56,14 @@ def balanco_orcamentario_anexo2():
     relatorio_builder = BalancoOrcamentarioAnexo2(ano=ano_selecionado, bimestre=bimestre_selecionado)
     dados_relatorio = relatorio_builder.gerar_relatorio()
 
+    # NOVO: Calcula superávit/déficit separadamente
+    calculo_superavit_deficit = CalculoSuperavitDeficit(ano=ano_selecionado, bimestre=bimestre_selecionado)
+    dados_superavit_deficit = calculo_superavit_deficit.calcular()
+
     return render_template(
         'rreo/RREO_balanco_orcamentario.html',
         dados=dados_relatorio,
+        superavit_deficit=dados_superavit_deficit,  # NOVO PARÂMETRO
         ano_selecionado=ano_selecionado,
         bimestre_selecionado=bimestre_selecionado,
         anos_disponiveis=anos_disponiveis

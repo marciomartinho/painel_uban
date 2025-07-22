@@ -174,7 +174,19 @@
         </tbody>
         <tfoot>
             {{ render_row(dados.total_receitas_iii) }}
-            {{ render_row(dados.linha_deficit) }}
+            
+            <!-- DÉFICIT (IV) - Calculado dinamicamente -->
+            <tr class="row-white">
+                <td>DÉFICIT (IV)</td>
+                <td>{{ format_value(0) }}</td>
+                <td>{{ format_value(0) }}</td>
+                <td>{{ format_value(0) }}</td>
+                <td>-</td>
+                <td>{{ format_value(superavit_deficit.deficit_valor) }}</td>
+                <td>-</td>
+                <td>{{ format_value(0) }}</td>
+            </tr>
+            
             {{ render_row(dados.total_v) }}
             {{ render_row(dados.saldos_exercicios_anteriores) }}
             {{ render_row(dados.linha_rpps) }}
@@ -235,10 +247,22 @@
         </tbody>
         <tfoot>
             {{ render_despesa_row(dados.despesa_total_despesas) }}
-            {{ render_despesa_row(dados.despesa_linha_superavit) }}
+            
+            <!-- SUPERÁVIT (IX) - Calculado dinamicamente -->
+            <tr class="row-white">
+                <td>SUPERÁVIT (IX)</td>
+                <td>{{ format_value(0) }}</td>
+                <td>{{ format_value(0) }}</td>
+                <td>{{ format_value(0) }}</td>
+                <td>{{ format_value(0) }}</td>
+                <td>{{ format_value(0) }}</td>
+                <td>{{ format_value(0) }}</td>
+                <td>{{ format_value(superavit_deficit.superavit_valor) }}</td>
+                <td>{{ format_value(0) }}</td>
+                <td>{{ format_value(0) }}</td>
+            </tr>
         </tfoot>
     </table>
-
 
 </div>
 {% endblock %}
