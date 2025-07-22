@@ -37,7 +37,7 @@ def _get_periodo_padrao():
 
 @rreo_bp.route('/anexo2')
 def balanco_orcamentario_anexo2():
-    """ Rota para o Anexo 2 do RREO - Balanço Orçamentário da Receita. """
+    """ Rota para o Anexo 2 do RREO - Balanço Orçamentário (Receita e Despesa). """
     
     # Define o período padrão dinamicamente
     ano_padrao, bimestre_padrao = _get_periodo_padrao()

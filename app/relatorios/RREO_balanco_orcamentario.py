@@ -1,11 +1,11 @@
 # app/relatorios/RREO_balanco_orcamentario.py
 """
-Módulo para gerar o Demonstrativo da Execução Orçamentária da Receita.
-Versão com a regra de cálculo de bimestres ACUMULADA para TODAS as colunas.
+Módulo para gerar o Demonstrativo Completo do Balanço Orçamentário (Receitas e Despesas).
+Combina os dados de receitas e despesas em um único relatório.
 """
 import pandas as pd
-# Certifique-se de que esta importação está correta no seu projeto
 from ..modulos.conexao_hibrida import ConexaoBanco, adaptar_query, get_db_environment
+from .RREO_despesa import BalancoOrcamentarioDespesaAnexo2
 
 class BalancoOrcamentarioAnexo2:
     """
@@ -50,8 +50,6 @@ class BalancoOrcamentarioAnexo2:
         
         type_cast = "::text" if env == 'postgres' else ""
 
-        # ---- INÍCIO DA CORREÇÃO PRINCIPAL ----
-        # Adicionado o filtro de meses (até o bimestre) para as colunas de PREVISÃO
         query = f"""
         WITH saldos_agregados AS (
             SELECT
@@ -75,7 +73,6 @@ class BalancoOrcamentarioAnexo2:
         WHERE sa.previsao_atualizada != 0 OR sa.realizado_ate_bimestre != 0
         ORDER BY sa.cofontereceita, sa.cosubfontereceita;
         """
-        # ---- FIM DA CORREÇÃO PRINCIPAL ----
         
         return self._executar_query(query, params)
 
@@ -90,7 +87,6 @@ class BalancoOrcamentarioAnexo2:
         placeholders_no_bimestre = ', '.join([placeholder] * len(self.meses_apenas_no_bimestre))
         placeholders_ate_bimestre = ', '.join([placeholder] * len(self.meses_ate_bimestre))
 
-        # Ajuste também na query de RPPS para garantir consistência
         query_rpps = f"""
         SELECT
             SUM(CASE WHEN {inmes_column} IN ({placeholders_ate_bimestre or 'NULL'}) AND fs.cocontacontabil BETWEEN '521100000' AND '521199999' THEN fs.saldo_contabil ELSE 0 END) as previsao_inicial,
@@ -155,6 +151,8 @@ class BalancoOrcamentarioAnexo2:
         }
 
     def gerar_relatorio(self) -> dict:
+        """Gera o relatório completo de receitas e despesas"""
+        # --- PARTE 1: RECEITAS ---
         df_correntes = self._get_dados_base("fs.cofontereceita BETWEEN '11' AND '19'")
         linhas_correntes = self._processar_hierarquia(df_correntes, "RECEITAS CORRENTES")
         
@@ -169,7 +167,8 @@ class BalancoOrcamentarioAnexo2:
         
         df_intra = self._get_dados_base("fs.cofontereceita BETWEEN '71' AND '79'")
         linhas_intra = self._processar_hierarquia(df_intra, "RECEITAS (INTRA-ORÇAMENTÁRIAS) (II)")
-        total_intra = linhas_intra[0] if linhas_intra else self._criar_linha(pd.Series(), "RECEITAS (INTRA-ORÇAMENTÁRIAS) (II)", 'principal', 0)
+        # CORREÇÃO: RECEITAS (INTRA-ORÇAMENTÁRIAS) deve ter mesmo tom que TOTAL DAS RECEITAS
+        total_intra = linhas_intra[0] if linhas_intra else self._criar_linha(pd.Series(), "RECEITAS (INTRA-ORÇAMENTÁRIAS) (II)", 'total_geral', 0)
 
         total_receitas_iii = {k: total_exceto_intra.get(k, 0) + total_intra.get(k, 0) for k in total_exceto_intra}
         linha_total_receitas_iii = self._criar_linha(pd.Series(total_receitas_iii), "TOTAL DAS RECEITAS (III) = (I + II)", 'total_geral', 0)
@@ -199,13 +198,36 @@ class BalancoOrcamentarioAnexo2:
         })
         linha_saldos_exercicios_anteriores = self._criar_linha(soma_saldos, "SALDOS DE EXERCÍCIOS ANTERIORES", "white-parent", 0, "saldos_parent")
 
+        # --- PARTE 2: DESPESAS ---
+        despesa_builder = BalancoOrcamentarioDespesaAnexo2(self.ano, self.bimestre)
+        dados_despesa = despesa_builder.gerar_relatorio()
+
         return {
-            'linhas_correntes': linhas_correntes, 'linhas_capital': linhas_capital,
-            'linhas_intra': linhas_intra, 'total_intra': total_intra,
+            # Dados de Receita
+            'linhas_correntes': linhas_correntes, 
+            'linhas_capital': linhas_capital,
+            'linhas_intra': linhas_intra, 
+            'total_intra': total_intra,
             'total_exceto_intra': linha_total_exceto_intra, 
             'total_receitas_iii': linha_total_receitas_iii,
-            'linha_deficit': linha_deficit, 'total_v': linha_total_v,
+            'linha_deficit': linha_deficit, 
+            'total_v': linha_total_v,
             'saldos_exercicios_anteriores': linha_saldos_exercicios_anteriores,
-            'linha_rpps': linha_rpps, 'linha_superavit': linha_superavit,
-            'ano': self.ano, 'bimestre': self.bimestre
+            'linha_rpps': linha_rpps, 
+            'linha_superavit': linha_superavit,
+            
+            # Dados de Despesa
+            'despesa_total_correntes': dados_despesa['total_correntes'],
+            'despesa_linhas_correntes': dados_despesa['linhas_correntes'],
+            'despesa_total_capital': dados_despesa['total_capital'],
+            'despesa_linhas_capital': dados_despesa['linhas_capital'],
+            'despesa_linha_reserva': dados_despesa['linha_reserva'],
+            'despesa_total_exceto_intra': dados_despesa['total_exceto_intra'],
+            'despesa_total_intra': dados_despesa['total_intra'],
+            'despesa_total_despesas': dados_despesa['total_despesas'],
+            'despesa_linha_superavit': dados_despesa['linha_superavit'],
+            
+            # Informações gerais
+            'ano': self.ano, 
+            'bimestre': self.bimestre
         }

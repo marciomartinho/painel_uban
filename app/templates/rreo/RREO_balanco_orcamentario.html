@@ -11,39 +11,48 @@
     .report-header h1 { font-size: 1.5rem; font-weight: 600; margin: 0; }
     .report-header p { font-size: 1rem; color: #6c757d; margin: 0; }
     .filter-bar { padding: 1rem; background-color: #f8f9fa; border-radius: 8px; margin-bottom: 2rem; display: flex; justify-content: center; gap: 1rem; align-items: center; }
-    .report-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-    .report-table th, .report-table td { border: 1px solid #b0c4de; padding: 0.6rem; text-align: right; vertical-align: middle; }
+    .report-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; margin-bottom: 3rem; }
+    .report-table th, .report-table td { border: 1px solid #b0c4de; padding: 0.4rem 0.3rem; text-align: right; vertical-align: middle; }
     .report-table th { font-weight: 700; text-align: center; }
     .report-table td:first-child { text-align: left; }
 
-    /* --- ESTILOS DE COR --- */
+    /* --- ESTILOS DE COR CORRIGIDOS --- */
     .header-green {
         background-color: #2E8B57;
         color: #ffffff;
     }
     
-    .row-total_grupo, .row-total_geral {
+    .header-blue {
+        background-color: #4169E1;
+        color: #ffffff;
+    }
+    
+    /* TOTAIS e LINHAS PRINCIPAIS - Verde médio */
+    .row-total_geral, .row-total_grupo, .row-principal {
         background-color: #8FBC8F !important;
     }
     
-    .row-total_grupo td, .row-total_geral td {
+    .row-total_geral td, .row-total_grupo td, .row-principal td {
         color: #2E8B57 !important;
         font-weight: 700 !important;
     }
     
-    .row-principal {
-        font-weight: 700;
-        background-color: #98FB98;
+    /* LINHAS DE DETALHAMENTO (fontes/subfontes) - Verde bem claro */
+    .row-fonte, .row-fonte_sozinha { 
+        background-color: #F0FFF0 !important;
+        font-weight: 700; 
     }
     
-    .row-fonte, .row-fonte_sozinha { 
-        font-weight: 700; 
+    .row-fonte td, .row-fonte_sozinha td {
+        color: #2E8B57 !important;
+        font-weight: 700 !important;
     }
     
     .row-subfonte td:first-child { 
         padding-left: 2rem; 
     }
 
+    /* Linhas especiais (Déficit, Superávit, Saldos) */
     .row-white, .row-white-parent, .row-white-child {
         background-color: #ffffff !important;
         font-weight: 700;
@@ -54,8 +63,38 @@
     }
     
     .col-descricao { width: 35%; }
-    .col-valor { white-space: nowrap; }
+    .col-valor { 
+        white-space: nowrap;
+        min-width: 100px;
+    }
     .col-pct { width: 5%; }
+    
+    .section-title {
+        background-color: #343a40;
+        color: #ffffff;
+        text-align: center;
+        font-weight: 700;
+        font-size: 1.1rem;
+        padding: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+    }
+    
+    /* Força que os valores monetários não quebrem linha */
+    .report-table td {
+        white-space: nowrap;
+    }
+
+    /* Apenas a primeira coluna (descrição) pode quebrar se necessário */
+    .report-table td:first-child {
+        white-space: normal;
+        word-wrap: break-word;
+    }
+    
+    @media print {
+        .filter-bar { display: none; }
+        .report-table { page-break-inside: avoid; }
+    }
 </style>
 {% endblock %}
 
@@ -69,8 +108,8 @@
 <div class="report-container">
     <div class="report-header">
         <img src="{{ url_for('static', filename='image/brasao.png') }}" alt="Brasão GDF">
-        <h1>DEMONSTRATIVO DA EXECUÇÃO ORÇAMENTÁRIA DA RECEITA</h1>
-        <p>Balanço Orçamentário - Governo do Distrito Federal</p>
+        <h1>BALANÇO ORÇAMENTÁRIO</h1>
+        <p>Governo do Distrito Federal</p>
         <p>Exercício de {{ ano_selecionado }} - Até o {{ bimestre_selecionado }}º Bimestre</p>
     </div>
 
@@ -96,6 +135,8 @@
         </form>
     </div>
 
+    <!-- DEMONSTRATIVO DE RECEITAS -->
+    <div class="section-title">DEMONSTRATIVO DA EXECUÇÃO ORÇAMENTÁRIA DA RECEITA</div>
     <table class="report-table">
         <thead>
             <tr class="header-green">
@@ -140,5 +181,64 @@
             {{ render_row(dados.linha_superavit) }}
         </tfoot>
     </table>
+
+    <!-- DEMONSTRATIVO DE DESPESAS -->
+    <div class="section-title">DEMONSTRATIVO DA EXECUÇÃO ORÇAMENTÁRIA DA DESPESA</div>
+    <table class="report-table">
+        <thead>
+            <tr class="header-blue">
+                <th rowspan="2" class="col-descricao" style="width: 25%;">DESPESAS</th>
+                <th rowspan="2" class="col-valor" style="width: 12%;">DOTAÇÃO INICIAL (d)</th>
+                <th rowspan="2" class="col-valor" style="width: 12%;">DOTAÇÃO ATUALIZADA (e)</th>
+                <th colspan="3" style="width: 28%;">DESPESAS EMPENHADAS</th>
+                <th colspan="3" style="width: 28%;">DESPESAS LIQUIDADAS</th>
+                <th rowspan="2" class="col-valor" style="width: 8%;">DESPESAS PAGAS<br>ATÉ O BIMESTRE (j)</th>
+            </tr>
+            <tr class="header-blue">
+                <th class="col-valor" style="width: 9%;">NO BIMESTRE</th>
+                <th class="col-valor" style="width: 9%;">ATÉ O BIMESTRE (f)</th>
+                <th class="col-valor" style="width: 10%;">SALDO (e-f)</th>
+                <th class="col-valor" style="width: 9%;">NO BIMESTRE</th>
+                <th class="col-valor" style="width: 9%;">ATÉ O BIMESTRE (h)</th>
+                <th class="col-valor" style="width: 10%;">SALDO (e-h)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% macro render_despesa_row(linha) %}
+            <tr class="row-{{ linha.tipo }}">
+                <td style="padding-left: {{ (linha.nivel) * 1.5 }}rem;">
+                    {% if linha.descricao == 'RESERVA DE CONTINGÊNCIA' %}
+                        <strong>{{ linha.descricao }}</strong>
+                    {% else %}
+                        {{ linha.descricao }}
+                    {% endif %}
+                </td>
+                <td>{{ format_value(linha.dotacao_inicial) }}</td>
+                <td>{{ format_value(linha.dotacao_autorizada) }}</td>
+                <td>{{ format_value(linha.empenhado_bimestre) }}</td>
+                <td>{{ format_value(linha.empenhado_ate_bimestre) }}</td>
+                <td>{{ format_value(linha.saldo_empenhado) }}</td>
+                <td>{{ format_value(linha.liquidado_bimestre) }}</td>
+                <td>{{ format_value(linha.liquidado_ate_bimestre) }}</td>
+                <td>{{ format_value(linha.saldo_liquidado) }}</td>
+                <td>{{ format_value(linha.pago_ate_bimestre) }}</td>
+            </tr>
+            {% endmacro %}
+            
+            {{ render_despesa_row(dados.despesa_total_exceto_intra) }}
+            {{ render_despesa_row(dados.despesa_total_correntes) }}
+            {% for linha in dados.despesa_linhas_correntes %}{{ render_despesa_row(linha) }}{% endfor %}
+            {{ render_despesa_row(dados.despesa_total_capital) }}
+            {% for linha in dados.despesa_linhas_capital %}{{ render_despesa_row(linha) }}{% endfor %}
+            {{ render_despesa_row(dados.despesa_linha_reserva) }}
+            {{ render_despesa_row(dados.despesa_total_intra) }}
+        </tbody>
+        <tfoot>
+            {{ render_despesa_row(dados.despesa_total_despesas) }}
+            {{ render_despesa_row(dados.despesa_linha_superavit) }}
+        </tfoot>
+    </table>
+
+
 </div>
 {% endblock %}
