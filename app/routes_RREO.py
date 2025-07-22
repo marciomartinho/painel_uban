@@ -1,8 +1,10 @@
 import math
 from flask import render_template, request, Blueprint
-from app.relatorios.RREO_receita import BalancoOrcamentarioAnexo2  # CORRIGIDO: era RREO_balanco_orcamentario
-from app.relatorios.RREO_balanco_intra import BalancoOrcamentarioIntraAnexo2  # NOVO IMPORT
-from app.relatorios.calculo_superavit_deficit import CalculoSuperavitDeficit  # NOVO IMPORT
+from app.relatorios.RREO_receita import BalancoOrcamentarioAnexo2
+from app.relatorios.RREO_balanco_intra import BalancoOrcamentarioIntraAnexo2
+from app.relatorios.RREO_despesa_funcional import BalancoOrcamentarioDespesaFuncionalAnexo2  # NOVO IMPORT
+from app.relatorios.RREO_despesa_funcional_intra import BalancoOrcamentarioDespesaFuncionalIntraAnexo2  # NOVO IMPORT
+from app.relatorios.calculo_superavit_deficit import CalculoSuperavitDeficit
 from app.modulos.conexao_hibrida import ConexaoBanco, adaptar_query
 import pandas as pd
 from datetime import datetime
@@ -57,14 +59,14 @@ def balanco_orcamentario_anexo2():
     relatorio_builder = BalancoOrcamentarioAnexo2(ano=ano_selecionado, bimestre=bimestre_selecionado)
     dados_relatorio = relatorio_builder.gerar_relatorio()
 
-    # NOVO: Calcula superávit/déficit separadamente
+    # Calcula superávit/déficit separadamente
     calculo_superavit_deficit = CalculoSuperavitDeficit(ano=ano_selecionado, bimestre=bimestre_selecionado)
     dados_superavit_deficit = calculo_superavit_deficit.calcular()
 
     return render_template(
         'rreo/RREO_balanco_orcamentario.html',
         dados=dados_relatorio,
-        superavit_deficit=dados_superavit_deficit,  # NOVO PARÂMETRO
+        superavit_deficit=dados_superavit_deficit,
         ano_selecionado=ano_selecionado,
         bimestre_selecionado=bimestre_selecionado,
         anos_disponiveis=anos_disponiveis
@@ -92,6 +94,64 @@ def balanco_orcamentario_intra():
 
     return render_template(
         'rreo/RREO_balanco_intra.html',
+        dados=dados_relatorio,
+        ano_selecionado=ano_selecionado,
+        bimestre_selecionado=bimestre_selecionado,
+        anos_disponiveis=anos_disponiveis
+    )
+
+# NOVAS ROTAS PARA DESPESA POR FUNÇÃO
+
+@rreo_bp.route('/despesa-funcional')
+def balanco_orcamentario_despesa_funcional():
+    """ Rota para o RREO - Balanço Orçamentário da Despesa por Função. """
+    
+    # Define o período padrão dinamicamente
+    ano_padrao, bimestre_padrao = _get_periodo_padrao()
+    
+    # Pega os valores do filtro da URL ou usa o padrão
+    ano_selecionado = request.args.get('ano', default=ano_padrao, type=int)
+    bimestre_selecionado = request.args.get('bimestre', default=bimestre_padrao, type=int)
+
+    # Busca os anos disponíveis para popular o dropdown do filtro
+    with ConexaoBanco() as conn:
+        df_anos = pd.read_sql_query(adaptar_query("SELECT DISTINCT CAST(coexercicio AS INTEGER) as ano FROM fato_saldos ORDER BY ano DESC"), conn)
+        anos_disponiveis = df_anos['ano'].tolist() if not df_anos.empty else [datetime.now().year]
+
+    # Gera os dados do relatório por função
+    relatorio_builder = BalancoOrcamentarioDespesaFuncionalAnexo2(ano=ano_selecionado, bimestre=bimestre_selecionado)
+    dados_relatorio = relatorio_builder.gerar_relatorio()
+
+    return render_template(
+        'rreo/RREO_balanco_despesa_funcional.html',
+        dados=dados_relatorio,
+        ano_selecionado=ano_selecionado,
+        bimestre_selecionado=bimestre_selecionado,
+        anos_disponiveis=anos_disponiveis
+    )
+
+@rreo_bp.route('/despesa-funcional-intra')
+def balanco_orcamentario_despesa_funcional_intra():
+    """ Rota para o RREO - Balanço Orçamentário da Despesa Intra-Orçamentária por Função. """
+    
+    # Define o período padrão dinamicamente
+    ano_padrao, bimestre_padrao = _get_periodo_padrao()
+    
+    # Pega os valores do filtro da URL ou usa o padrão
+    ano_selecionado = request.args.get('ano', default=ano_padrao, type=int)
+    bimestre_selecionado = request.args.get('bimestre', default=bimestre_padrao, type=int)
+
+    # Busca os anos disponíveis para popular o dropdown do filtro
+    with ConexaoBanco() as conn:
+        df_anos = pd.read_sql_query(adaptar_query("SELECT DISTINCT CAST(coexercicio AS INTEGER) as ano FROM fato_saldos ORDER BY ano DESC"), conn)
+        anos_disponiveis = df_anos['ano'].tolist() if not df_anos.empty else [datetime.now().year]
+
+    # Gera os dados do relatório intra por função
+    relatorio_builder = BalancoOrcamentarioDespesaFuncionalIntraAnexo2(ano=ano_selecionado, bimestre=bimestre_selecionado)
+    dados_relatorio = relatorio_builder.gerar_relatorio()
+
+    return render_template(
+        'rreo/RREO_balanco_despesa_funcional_intra.html',
         dados=dados_relatorio,
         ano_selecionado=ano_selecionado,
         bimestre_selecionado=bimestre_selecionado,

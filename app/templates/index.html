@@ -52,8 +52,21 @@
         .icon-success .card-icon { background: linear-gradient(135deg, #198754, #146c43); }
         .icon-warning .card-icon { background: linear-gradient(135deg, #ffc107, #d9a406); }
         .icon-danger .card-icon { background: linear-gradient(135deg, #dc3545, #bd1825); }
+        .icon-purple .card-icon { background: linear-gradient(135deg, #6a4c93, #5a3e7a); }
         .info-alert { background-color: var(--secondary-light); border-left: 4px solid var(--primary-light); padding: 1.5rem; border-radius: var(--radius-sm); margin-top: 3rem; color: var(--gray-dark); }
         .info-alert h5 { color: var(--primary-color); margin: 0 0 0.5rem 0; font-size: 1rem; }
+        
+        /* Botões de ação múltipla */
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .btn-small {
+            padding: 0.5rem 1rem;
+            font-size: 0.8rem;
+        }
     </style>
 </head>
 <body>
@@ -101,22 +114,30 @@
                     </div>
                 </div>
 
-                <!-- CARD RREO -->
+                <!-- CARD RREO UNIFICADO COM 4 BOTÕES -->
                 <div class="feature-card icon-danger">
-    <div class="card-header">
-        <div class="card-icon"><i class="fas fa-chart-bar"></i></div>
-        <div class="card-title"><h2>RREO</h2></div>
-    </div>
-    <div class="card-body">
-        <p>Relatório Resumido de Execução Orçamentária</p>
-        <a href="{{ url_for('rreo.balanco_orcamentario_anexo2') }}" class="btn btn-primary" style="margin-bottom: 0.5rem;">
-            Balanço Orçamentário Geral
-        </a>
-        <a href="{{ url_for('rreo.balanco_orcamentario_intra') }}" class="btn btn-primary">
-            Receitas e Despesas Intra
-        </a>
-    </div>
-</div>
+                    <div class="card-header">
+                        <div class="card-icon"><i class="fas fa-chart-bar"></i></div>
+                        <div class="card-title"><h2>RREO</h2></div>
+                    </div>
+                    <div class="card-body">
+                        <p>Relatório Resumido de Execução Orçamentária</p>
+                        <div class="btn-group">
+                            <a href="{{ url_for('rreo.balanco_orcamentario_anexo2') }}" class="btn btn-primary btn-small">
+                                Balanço Orçamentário
+                            </a>
+                            <a href="{{ url_for('rreo.balanco_orcamentario_intra') }}" class="btn btn-primary btn-small">
+                                Balanço Orçamentário Intra
+                            </a>
+                            <a href="{{ url_for('rreo.balanco_orcamentario_despesa_funcional') }}" class="btn btn-primary btn-small">
+                                Despesa por Função
+                            </a>
+                            <a href="{{ url_for('rreo.balanco_orcamentario_despesa_funcional_intra') }}" class="btn btn-primary btn-small">
+                                Despesa por Função Intra
+                            </a>
+                        </div>
+                    </div>
+                </div>
 
                 <div class="feature-card icon-warning">
                     <div class="card-header">

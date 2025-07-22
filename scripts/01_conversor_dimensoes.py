@@ -17,7 +17,9 @@ CAMINHO_DB = os.path.join(BASE_DIR, 'dados', 'db')
 # Criar pasta db se não existir
 os.makedirs(CAMINHO_DB, exist_ok=True)
 
+# Dicionário com todas as tabelas de dimensão a serem processadas
 TABELAS_DIMENSAO = {
+    # Tabelas de Receita (originais)
     'categorias': {
         'arquivo': 'receita_categoria.csv',
         'chave_primaria': 'cocategoriareceita',
@@ -43,6 +45,18 @@ TABELAS_DIMENSAO = {
         'chave_primaria': 'coalinea',
         'descricao': 'Alíneas'
     },
+    # Tabelas de Despesa (novas)
+    'funcoes': {
+        'arquivo': 'despesa_funcao.csv',
+        'chave_primaria': 'cofuncao',
+        'descricao': 'Funções de Despesa'
+    },
+    'subfuncoes': {
+        'arquivo': 'despesa_subfuncao.csv',
+        'chave_primaria': 'cosubfuncao',
+        'descricao': 'Subfunções de Despesa'
+    },
+    # Tabelas Genéricas (originais)
     'fontes': {
         'arquivo': 'fonte.csv',
         'chave_primaria': 'cofonte',
@@ -124,7 +138,7 @@ def criar_banco_dimensoes():
     for nome_tabela, info in TABELAS_DIMENSAO.items():
         arquivo_csv = os.path.join(CAMINHO_DADOS_BRUTOS, info['arquivo'])
         
-        print(f"\n📁 {info['arquivo']}:")
+        print(f"\n📁 {info['arquivo']} ({info['descricao']}):")
         
         if os.path.exists(arquivo_csv):
             try:
@@ -169,7 +183,8 @@ def criar_banco_dimensoes():
     print(f"\n📊 Estatísticas finais:")
     print(f"   Total de registros: {total_registros:,}")
     print(f"   Tempo total: {tempo_total:.2f} segundos")
-    print(f"   Taxa média: {total_registros/tempo_total:.0f} registros/segundo")
+    if tempo_total > 0:
+        print(f"   Taxa média: {total_registros/tempo_total:.0f} registros/segundo")
     print(f"\n💾 Banco de dimensões criado em: {os.path.abspath(caminho_db)}")
 
 if __name__ == "__main__":
