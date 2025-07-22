@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block title %}RREO - Balanço Orçamentário Intra-Orçamentário{% endblock %}
+
+{% block head %}
+<style>
+    body { background-color: #eef2f5; }
+    .report-container { background-color: #fff; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 1600px; margin: 2rem auto; }
+    .report-header { text-align: center; margin-bottom: 2rem; border-bottom: 2px solid #dee2e6; padding-bottom: 1.5rem; }
+    .report-header img { height: 70px; margin-bottom: 1rem; }
+    .report-header h1 { font-size: 1.5rem; font-weight: 600; margin: 0; }
+    .report-header p { font-size: 1rem; color: #6c757d; margin: 0; }
+    .filter-bar { padding: 1rem; background-color: #f8f9fa; border-radius: 8px; margin-bottom: 2rem; display: flex; justify-content: center; gap: 1rem; align-items: center; }
+    .report-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; margin-bottom: 3rem; }
+    .report-table th, .report-table td { border: 1px solid #b0c4de; padding: 0.4rem 0.3rem; text-align: right; vertical-align: middle; }
+    .report-table th { font-weight: 700; text-align: center; }
+    .report-table td:first-child { text-align: left; }
+
+    /* --- ESTILOS DE COR PARA INTRA-ORÇAMENTÁRIAS --- */
+    .header-purple {
+        background-color: #6a4c93;
+        color: #ffffff;
+    }
+    
+    .header-orange {
+        background-color: #ff8c42;
+        color: #ffffff;
+    }
+    
+    /* TOTAIS e LINHAS PRINCIPAIS - Roxo médio */
+    .row-total_geral, .row-total_grupo, .row-principal {
+        background-color: #b19cd9 !important;
+    }
+    
+    .row-total_geral td, .row-total_grupo td, .row-principal td {
+        color: #6a4c93 !important;
+        font-weight: 700 !important;
+    }
+    
+    /* LINHAS DE DETALHAMENTO (fontes/subfontes) - Roxo bem claro */
+    .row-fonte, .row-fonte_sozinha { 
+        background-color: #f5f2ff !important;
+        font-weight: 700; 
+    }
+    
+    .row-fonte td, .row-fonte_sozinha td {
+        color: #6a4c93 !important;
+        font-weight: 700 !important;
+    }
+    
+    .row-subfonte td:first-child { 
+        padding-left: 2rem; 
+    }
+    
+    .col-descricao { width: 35%; }
+    .col-valor { 
+        white-space: nowrap;
+        min-width: 100px;
+    }
+    .col-pct { width: 5%; }
+    
+    .section-title {
+        background-color: #6a4c93;
+        color: #ffffff;
+        text-align: center;
+        font-weight: 700;
+        font-size: 1.1rem;
+        padding: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+    }
+    
+    /* Força que os valores monetários não quebrem linha */
+    .report-table td {
+        white-space: nowrap;
+    }
+
+    /* Apenas a primeira coluna (descrição) pode quebrar se necessário */
+    .report-table td:first-child {
+        white-space: normal;
+        word-wrap: break-word;
+    }
+    
+    @media print {
+        .filter-bar { display: none; }
+        .report-table { page-break-inside: avoid; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% macro format_value(value) %}
+    {% if value == 0 or value == 0.0 %} -
+    {% else %} {{ value|formatar_moeda }}
+    {% endif %}
+{% endmacro %}
+
+<div class="report-container">
+    <div class="report-header">
+        <img src="{{ url_for('static', filename='image/brasao.png') }}" alt="Brasão GDF">
+        <h1>BALANÇO ORÇAMENTÁRIO INTRA-ORÇAMENTÁRIO</h1>
+        <p>Governo do Distrito Federal</p>
+        <p>Exercício de {{ ano_selecionado }} - Até o {{ bimestre_selecionado }}º Bimestre</p>
+    </div>
+
+    <div class="filter-bar no-print">
+        <form method="get" class="form-inline">
+            <div class="form-group mx-2">
+                <label for="ano" class="mr-2">Ano:</label>
+                <select name="ano" id="ano" class="form-control form-control-sm"> 
+                    {% for ano in anos_disponiveis %}
+                    <option value="{{ ano }}" {% if ano == ano_selecionado %}selected{% endif %}>{{ ano }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group mx-2">
+                <label for="bimestre" class="mr-2">Bimestre:</label>
+                <select name="bimestre" id="bimestre" class="form-control form-control-sm"> 
+                    {% for i in range(1, 7) %}
+                    <option value="{{ i }}" {% if i == bimestre_selecionado %}selected{% endif %}>{{ i }}º Bimestre</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Filtrar</button>
+        </form>
+    </div>
+
+    <!-- DEMONSTRATIVO DE RECEITAS INTRA-ORÇAMENTÁRIAS -->
+    <div class="section-title">DEMONSTRATIVO DA EXECUÇÃO ORÇAMENTÁRIA DA RECEITA INTRA-ORÇAMENTÁRIA</div>
+    <table class="report-table">
+        <thead>
+            <tr class="header-purple">
+                <th rowspan="2" class="col-descricao">RECEITAS INTRA-ORÇAMENTÁRIAS</th>
+                <th rowspan="2" class="col-valor">PREVISÃO INICIAL</th>
+                <th rowspan="2" class="col-valor">PREVISÃO ATUALIZADA (a)</th>
+                <th colspan="4">RECEITAS REALIZADAS</th>
+                <th rowspan="2" class="col-valor">SALDO (a-c)</th>
+            </tr>
+            <tr class="header-purple">
+                <th class="col-valor">NO BIMESTRE (b)</th>
+                <th class="col-pct">% (b/a)</th>
+                <th class="col-valor">ATÉ O BIMESTRE (c)</th>
+                <th class="col-pct">% (c/a)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% macro render_receita_row(linha) %}
+            <tr class="row-{{ linha.tipo }}">
+                <td style="padding-left: {{ (linha.nivel) * 1.5 }}rem;">{{ linha.descricao }}</td>
+                <td>{{ format_value(linha.previsao_inicial) }}</td>
+                <td>{{ format_value(linha.previsao_atualizada) }}</td>
+                <td>{{ format_value(linha.realizado_bimestre) }}</td>
+                <td>{{ "%.2f"|format(linha.pct_bimestre)|replace('.', ',') if linha.pct_bimestre else '-' }}</td>
+                <td>{{ format_value(linha.realizado_ate_bimestre) }}</td>
+                <td>{{ "%.2f"|format(linha.pct_ate_bimestre)|replace('.', ',') if linha.pct_ate_bimestre else '-' }}</td>
+                <td>{{ format_value(linha.saldo) }}</td>
+            </tr>
+            {% endmacro %}
+            
+            <!-- Receitas Correntes Intra -->
+            {% for linha in dados.receita_linhas_correntes_intra %}{{ render_receita_row(linha) }}{% endfor %}
+        </tbody>
+        <tfoot>
+            {{ render_receita_row(dados.receita_total_intra) }}
+        </tfoot>
+    </table>
+
+    <!-- DEMONSTRATIVO DE DESPESAS INTRA-ORÇAMENTÁRIAS -->
+    <div class="section-title">DEMONSTRATIVO DA EXECUÇÃO ORÇAMENTÁRIA DA DESPESA INTRA-ORÇAMENTÁRIA</div>
+    <table class="report-table">
+        <thead>
+            <tr class="header-orange">
+                <th rowspan="2" class="col-descricao" style="width: 25%;">DESPESAS INTRA-ORÇAMENTÁRIAS</th>
+                <th rowspan="2" class="col-valor" style="width: 12%;">DOTAÇÃO INICIAL (d)</th>
+                <th rowspan="2" class="col-valor" style="width: 12%;">DOTAÇÃO ATUALIZADA (e)</th>
+                <th colspan="3" style="width: 28%;">DESPESAS EMPENHADAS</th>
+                <th colspan="3" style="width: 28%;">DESPESAS LIQUIDADAS</th>
+                <th rowspan="2" class="col-valor" style="width: 8%;">DESPESAS PAGAS<br>ATÉ O BIMESTRE (j)</th>
+            </tr>
+            <tr class="header-orange">
+                <th class="col-valor" style="width: 9%;">NO BIMESTRE</th>
+                <th class="col-valor" style="width: 9%;">ATÉ O BIMESTRE (f)</th>
+                <th class="col-valor" style="width: 10%;">SALDO (e-f)</th>
+                <th class="col-valor" style="width: 9%;">NO BIMESTRE</th>
+                <th class="col-valor" style="width: 9%;">ATÉ O BIMESTRE (h)</th>
+                <th class="col-valor" style="width: 10%;">SALDO (e-h)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% macro render_despesa_row(linha) %}
+            <tr class="row-{{ linha.tipo }}">
+                <td style="padding-left: {{ (linha.nivel) * 1.5 }}rem;">{{ linha.descricao }}</td>
+                <td>{{ format_value(linha.dotacao_inicial) }}</td>
+                <td>{{ format_value(linha.dotacao_autorizada) }}</td>
+                <td>{{ format_value(linha.empenhado_bimestre) }}</td>
+                <td>{{ format_value(linha.empenhado_ate_bimestre) }}</td>
+                <td>{{ format_value(linha.saldo_empenhado) }}</td>
+                <td>{{ format_value(linha.liquidado_bimestre) }}</td>
+                <td>{{ format_value(linha.liquidado_ate_bimestre) }}</td>
+                <td>{{ format_value(linha.saldo_liquidado) }}</td>
+                <td>{{ format_value(linha.pago_ate_bimestre) }}</td>
+            </tr>
+            {% endmacro %}
+            
+            <!-- Despesas Correntes Intra -->
+            {{ render_despesa_row(dados.despesa_total_correntes_intra) }}
+            {% for linha in dados.despesa_linhas_correntes_intra %}{{ render_despesa_row(linha) }}{% endfor %}
+            
+            <!-- Despesas de Capital Intra -->
+            {{ render_despesa_row(dados.despesa_total_capital_intra) }}
+            {% for linha in dados.despesa_linhas_capital_intra %}{{ render_despesa_row(linha) }}{% endfor %}
+        </tbody>
+        <tfoot>
+            {{ render_despesa_row(dados.despesa_total_despesas_intra) }}
+        </tfoot>
+    </table>
+
+    <!-- Informação sobre Equilíbrio -->
+    <div style="margin-top: 2rem; padding: 1rem; background-color: #f8f9fa; border-radius: 5px; text-align: center;">
+        <h5>Nota sobre Operações Intra-Orçamentárias</h5>
+        <p style="margin-bottom: 0; color: #6c757d; font-size: 0.9rem;">
+            As operações intra-orçamentárias devem apresentar equilíbrio entre receitas e despesas, 
+            representando transferências internas entre órgãos da mesma esfera de governo.
+        </p>
+    </div>
+
+</div>
+{% endblock %}

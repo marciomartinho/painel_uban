@@ -1,6 +1,7 @@
 import math
 from flask import render_template, request, Blueprint
 from app.relatorios.RREO_receita import BalancoOrcamentarioAnexo2  # CORRIGIDO: era RREO_balanco_orcamentario
+from app.relatorios.RREO_balanco_intra import BalancoOrcamentarioIntraAnexo2  # NOVO IMPORT
 from app.relatorios.calculo_superavit_deficit import CalculoSuperavitDeficit  # NOVO IMPORT
 from app.modulos.conexao_hibrida import ConexaoBanco, adaptar_query
 import pandas as pd
@@ -64,6 +65,34 @@ def balanco_orcamentario_anexo2():
         'rreo/RREO_balanco_orcamentario.html',
         dados=dados_relatorio,
         superavit_deficit=dados_superavit_deficit,  # NOVO PARÂMETRO
+        ano_selecionado=ano_selecionado,
+        bimestre_selecionado=bimestre_selecionado,
+        anos_disponiveis=anos_disponiveis
+    )
+
+@rreo_bp.route('/intra')
+def balanco_orcamentario_intra():
+    """ Rota para o RREO - Balanço Orçamentário Intra-Orçamentário (Receitas e Despesas Intra). """
+    
+    # Define o período padrão dinamicamente
+    ano_padrao, bimestre_padrao = _get_periodo_padrao()
+    
+    # Pega os valores do filtro da URL ou usa o padrão
+    ano_selecionado = request.args.get('ano', default=ano_padrao, type=int)
+    bimestre_selecionado = request.args.get('bimestre', default=bimestre_padrao, type=int)
+
+    # Busca os anos disponíveis para popular o dropdown do filtro
+    with ConexaoBanco() as conn:
+        df_anos = pd.read_sql_query(adaptar_query("SELECT DISTINCT CAST(coexercicio AS INTEGER) as ano FROM fato_saldos ORDER BY ano DESC"), conn)
+        anos_disponiveis = df_anos['ano'].tolist() if not df_anos.empty else [datetime.now().year]
+
+    # Gera os dados do relatório intra-orçamentário
+    relatorio_builder = BalancoOrcamentarioIntraAnexo2(ano=ano_selecionado, bimestre=bimestre_selecionado)
+    dados_relatorio = relatorio_builder.gerar_relatorio()
+
+    return render_template(
+        'rreo/RREO_balanco_intra.html',
+        dados=dados_relatorio,
         ano_selecionado=ano_selecionado,
         bimestre_selecionado=bimestre_selecionado,
         anos_disponiveis=anos_disponiveis

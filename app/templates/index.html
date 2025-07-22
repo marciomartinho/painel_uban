@@ -109,8 +109,11 @@
     </div>
     <div class="card-body">
         <p>Relatório Resumido de Execução Orçamentária</p>
-        <a href="{{ url_for('rreo.balanco_orcamentario_anexo2') }}" class="btn btn-primary">
-            Balanço Orçamentário Receita
+        <a href="{{ url_for('rreo.balanco_orcamentario_anexo2') }}" class="btn btn-primary" style="margin-bottom: 0.5rem;">
+            Balanço Orçamentário Geral
+        </a>
+        <a href="{{ url_for('rreo.balanco_orcamentario_intra') }}" class="btn btn-primary">
+            Receitas e Despesas Intra
         </a>
     </div>
 </div>
